@@ -1,0 +1,66 @@
+---
+description: "Core project context, architecture, and phase-by-phase workflow for TradeSim"
+alwaysApply: true
+---
+
+# TradeSim — Cursor context
+
+Full detail lives in `/AGENTS.md`, `docs/ARCHITECTURE.md`, `docs/DECISIONS.md`,
+and `docs/TASKS.md` — read them before starting work in a session. This rule
+pins the essentials so they're always loaded, and states the workflow
+explicitly since it applies to every session.
+
+## What this is
+
+TradeSim: a paper-trading simulator rebuilt to demonstrate production-grade
+backend engineering — real-time market data, correct concurrent financial
+transactions, and (later) an AI portfolio feature. Code will be read by
+interviewers; optimize for correctness and clarity over cleverness.
+
+## Stack
+
+NestJS + TypeScript (`apps/api`, `apps/worker`), Prisma + PostgreSQL, Redis
+(cache + pub/sub + BullMQ), Auth0, Upstox WebSocket market-data feed (push,
+not polled). pnpm workspaces monorepo: `libs/db` (Prisma) and `libs/common`
+(shared types/money helpers) are shared by both apps.
+
+## The workflow — follow this every session
+
+1. Check `docs/TASKS.md` for the first phase with unchecked items. Work
+   phases **in order** — do not jump ahead.
+2. Read the matching section of `docs/ARCHITECTURE.md` before writing code.
+3. Implement only that phase's unchecked items, at the file paths
+   `docs/TASKS.md` specifies.
+4. Write the tests its "Done when" line requires before considering it done.
+5. Check off items in `docs/TASKS.md` and add a `docs/DECISIONS.md` entry for
+   any non-obvious call.
+6. Items prefixed `**You**:` are for the human to do manually — prompt for
+   them, don't try to automate around them.
+
+## Non-negotiable correctness rules
+
+- Money is `BigInt` paise everywhere it's calculated. Never a float, never a
+  JS `number`, in any arithmetic. Display formatting only, via
+  `libs/common`'s `paiseToDisplayRupees`.
+- Every order execution happens inside one Postgres transaction with a
+  row-level lock (`SELECT ... FOR UPDATE`) on the user — check funds/shares,
+  debit/credit, update holdings, mark the order, all atomic. See the order
+  execution flow in `docs/ARCHITECTURE.md`.
+- Orders for the same user are never processed concurrently — BullMQ jobs
+  are grouped/keyed by `userId`.
+- Redis events (order-filled, price-tick) publish only AFTER a DB commit,
+  never before.
+- Anything touching money, balances, holdings, or orders needs a test —
+  no exceptions. The order-execution concurrency test is the most important
+  test in the whole project.
+
+## General conventions
+
+- Strict TypeScript, no unexplained `any`.
+- NestJS: constructor injection, one module per bounded feature, DTOs
+  validated with `class-validator`.
+- Prisma for all DB access — no raw SQL without a documented reason.
+- Conventional commits (`feat:`, `fix:`, `test:`, `chore:`).
+- Before proposing a different DB, framework, or queue technology than
+  what's already chosen, check `docs/DECISIONS.md` — the tradeoffs were
+  already discussed there.

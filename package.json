@@ -1,0 +1,25 @@
+{
+  "name": "tradesim",
+  "private": true,
+  "packageManager": "pnpm@9.0.0",
+  "scripts": {
+    "dev:api": "dotenv -e .env -- pnpm --filter @tradesim/api dev",
+    "dev:worker": "dotenv -e .env -- pnpm --filter @tradesim/worker dev",
+    "build": "pnpm -r build",
+    "lint": "pnpm -r lint",
+    "test": "pnpm -r test",
+    "db:generate": "dotenv -e .env -- pnpm --filter @tradesim/db exec prisma generate",
+    "db:migrate": "dotenv -e .env -- pnpm --filter @tradesim/db exec prisma migrate dev",
+    "db:seed": "dotenv -e .env -- pnpm --filter @tradesim/db exec tsx prisma/seed.ts",
+    "db:studio": "dotenv -e .env -- pnpm --filter @tradesim/db exec prisma studio"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.0",
+    "tsx": "^4.19.0",
+    "@types/node": "^22.0.0",
+    "eslint": "^9.10.0",
+    "prettier": "^3.3.0",
+    "dotenv-cli": "^7.4.0",
+    "typescript-eslint": "^8.8.0"
+  }
+}

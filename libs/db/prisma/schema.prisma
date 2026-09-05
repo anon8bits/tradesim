@@ -1,0 +1,98 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// All money fields are stored as integer paise/cents (BigInt), never floats.
+// This avoids the classic "0.1 + 0.2" floating point bug in a domain where
+// that bug means someone's balance is silently wrong.
+
+enum OrderSide {
+  BUY
+  SELL
+}
+
+enum OrderStatus {
+  PENDING
+  FILLED
+  REJECTED
+}
+
+model User {
+  id               String   @id @default(uuid())
+  email            String   @unique
+  auth0Id          String   @unique
+  cashBalanceCents BigInt   @default(0)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  holdings     Holding[]
+  orders       Order[]
+  transactions Transaction[]
+
+  @@map("users")
+}
+
+model Holding {
+  id            String   @id @default(uuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id])
+  symbol        String
+  quantity      Int
+  avgCostCents  BigInt
+  updatedAt     DateTime @updatedAt
+
+  @@unique([userId, symbol])
+  @@map("holdings")
+}
+
+model Order {
+  id          String      @id @default(uuid())
+  userId      String
+  user        User        @relation(fields: [userId], references: [id])
+  symbol      String
+  side        OrderSide
+  quantity    Int
+  status      OrderStatus @default(PENDING)
+  // Fill price is set only when the worker executes the order, not at
+  // submission time — the API never guesses a price.
+  fillPriceCents BigInt?
+  createdAt   DateTime    @default(now())
+  processedAt DateTime?
+
+  transactions Transaction[]
+
+  @@index([userId, status])
+  @@map("orders")
+}
+
+model Transaction {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  orderId     String?
+  order       Order?   @relation(fields: [orderId], references: [id])
+  // e.g. "TRADE_BUY", "TRADE_SELL", "DEPOSIT" — kept as a plain string for
+  // now; promote to an enum once the set of transaction types stabilizes.
+  type        String
+  // Signed: negative = debit from cash balance, positive = credit.
+  amountCents BigInt
+  createdAt   DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@map("transactions")
+}
+
+model PriceSnapshot {
+  id          String   @id @default(uuid())
+  symbol      String
+  priceCents  BigInt
+  ts          DateTime @default(now())
+
+  @@index([symbol, ts])
+  @@map("price_snapshots")
+}
