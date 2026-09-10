@@ -13,8 +13,7 @@ real stocks at real (delayed) prices, and track portfolio performance. It's a
 personal/portfolio project, rebuilt from an earlier CRUD version, with the
 explicit goal of demonstrating production-grade backend engineering: real-time
 data, correct concurrent financial transactions, and (later) an AI-assisted
-portfolio feature. Optimize for correctness and clarity over cleverness —
-this code will be read by interviewers.
+portfolio feature. Optimize for correctness and clarity over cleverness.
 
 ## Tech stack
 
@@ -74,13 +73,16 @@ this code will be read by interviewers.
 
 ## Current status
 
-**Phase 0 (environment) and Phase 1 (data foundation) are scaffolded.** The
-monorepo, Prisma schema, seed script, `/health` endpoint, and worker
-placeholder all exist and `pnpm install` succeeds. What's NOT done yet: the
-migration hasn't been run against a live Postgres, the Upstox account/curated
-symbol list is still a placeholder, and every module from Phase 2 onward
-(`auth/`, `market/`, `portfolio/`, `orders/`, `realtime/`, `ai/`, and the
-worker's `execution/`/`ingestion/`) doesn't exist yet.
+**Phase 0 (local Docker) and Phase 1 (data foundation) are done.** Migration
+`20260905190945_init` is applied, seed data is in Postgres (2 users, 0
+holdings, 3 price snapshots), and the API health and shared money helpers
+have automated tests. Phase 2's Auth0/JWKS strategy, global guard, public
+health route, and injectable Prisma service are implemented and tested;
+creating the real Auth0 tenant and adding its domain/audience to `.env`
+remain manual prerequisites before Phase 2 is complete. The Upstox
+account/curated symbol list is also still a placeholder. Modules from Phase
+3 onward (`market/`, `portfolio/`, `orders/`, `realtime/`, `ai/`, and the
+worker's `execution/`/`ingestion/`) do not exist yet.
 
 **Full phase-by-phase status, with checkboxes, lives in `docs/TASKS.md` — that
 file, not this summary, is the source of truth for what to build next.**

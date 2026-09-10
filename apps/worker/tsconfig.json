@@ -2,7 +2,11 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "outDir": "dist",
-    "rootDir": "src"
+    "rootDir": "src",
+    "paths": {
+      "@tradesim/db": ["libs/db/dist/index.d.ts"],
+      "@tradesim/common": ["libs/common/dist/index.d.ts"]
+    }
   },
   "include": ["src"]
 }

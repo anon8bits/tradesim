@@ -16,8 +16,15 @@ describe("paiseToDisplayRupees", () => {
 });
 
 describe("rupeesToPaise", () => {
-  it("converts display rupees into integer paise", () => {
-    expect(rupeesToPaise(100000)).toBe(10_000_000n);
-    expect(rupeesToPaise(2945.5)).toBe(2_945_50n);
+  it("converts decimal strings into integer paise without floating-point arithmetic", () => {
+    expect(rupeesToPaise("100000")).toBe(10_000_000n);
+    expect(rupeesToPaise("2945.5")).toBe(2_945_50n);
+    expect(rupeesToPaise("0.01")).toBe(1n);
+    expect(rupeesToPaise("-1.50")).toBe(-150n);
+  });
+
+  it("rejects values that cannot be represented exactly as paise", () => {
+    expect(() => rupeesToPaise("1.001")).toThrow("Invalid rupee amount");
+    expect(() => rupeesToPaise("not-money")).toThrow("Invalid rupee amount");
   });
 });

@@ -27,8 +27,15 @@ export function paiseToDisplayRupees(paise: bigint): string {
   return negative ? `-${formatted}` : formatted;
 }
 
-export function rupeesToPaise(rupees: number): bigint {
-  return BigInt(Math.round(rupees * 100));
+export function rupeesToPaise(rupees: string): bigint {
+  const match = /^(-?)(\d+)(?:\.(\d{1,2}))?$/.exec(rupees);
+  if (!match) {
+    throw new Error(`Invalid rupee amount: ${rupees}`);
+  }
+
+  const [, sign, wholeRupees, fractionalPaise = ""] = match;
+  const paise = BigInt(wholeRupees) * 100n + BigInt(fractionalPaise.padEnd(2, "0"));
+  return sign === "-" ? -paise : paise;
 }
 
 /**

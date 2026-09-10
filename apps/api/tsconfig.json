@@ -4,7 +4,11 @@
     "outDir": "dist",
     "rootDir": "src",
     "module": "CommonJS",
-    "target": "ES2022"
+    "target": "ES2022",
+    "paths": {
+      "@tradesim/db": ["libs/db/dist/index.d.ts"],
+      "@tradesim/common": ["libs/common/dist/index.d.ts"]
+    }
   },
   "include": ["src"]
 }

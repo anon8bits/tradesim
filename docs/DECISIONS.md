@@ -11,8 +11,7 @@ give this natively; modeling the same guarantees in MongoDB is possible but
 more work and less idiomatic.
 
 **Alternatives considered**: Keep MongoDB with multi-document transactions —
-workable but relational structure fits the domain better, and this is a
-stronger interview talking point.
+workable but relational structure fits the domain better.
 
 ## 2026-09-03 — NestJS instead of raw Express
 
@@ -59,20 +58,21 @@ a production redistribution product.
   polling-based (not push), and in a legal gray area; not worth it when a
   real broker API solves the problem properly.
 
-## 2026-09-05 — Load `.env` before process start; run the API with `tsx`
+## 2026-09-10 — Build shared libraries before starting either app
 
 **Why**: `@tradesim/db` constructs a `PrismaClient` at import time. Nest's
-`ConfigModule` therefore cannot inject `DATABASE_URL` in time for the Phase 1
-health check (or the worker's startup count). Root `dev:api` / `dev:worker`
-wrap the process with `dotenv-cli` so the URL is in the environment before
-any import. The API `dev` script uses `tsx watch` (same as the worker) so
-workspace packages that export TypeScript (`main: src/index.ts`) resolve
-without a Nest webpack monorepo setup.
+`ConfigModule` therefore cannot inject `DATABASE_URL` in time for the worker
+or legacy direct imports. Root `dev:api` / `dev:worker` still load `.env`
+before app startup, but now build `libs/common` and `libs/db` first. Shared
+packages expose `dist` entry points and application TypeScript configs resolve
+their declarations there. This keeps source files outside each app's
+`rootDir`, allowing both development startup and production builds to work.
 
-**Alternatives considered**: Nest `ConfigModule` + `nest start --watch`
-(too late for the Prisma singleton, and `tsc`/`nest` cannot compile
-workspace `.ts` entrypoints outside `apps/api/src`). A Nest `PrismaService`
-wrapper is still planned for Phase 2.
+**Alternatives considered**: exporting workspace TypeScript source directly
+(worked under `tsx` but broke `tsc`/Nest production builds because shared
+source lies outside app `rootDir`); widening each app's `rootDir` (produces an
+incorrect output layout). Phase 2 now uses a Nest `PrismaService` in the API;
+the worker continues to use the shared client.
 
 <!-- Add new entries above this line, newest first. -->
 

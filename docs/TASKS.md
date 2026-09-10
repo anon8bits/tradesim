@@ -12,7 +12,7 @@ of done" — don't start the next phase until it's met.
 - [x] AI tool context wired up: `AGENTS.md`, `CLAUDE.md`, `.cursor/rules/`,
   `.github/copilot-instructions.md` all in repo
 - [x] `docker-compose.yml` written (Postgres, Redis, Adminer)
-- [ ] **You**: run `docker compose up -d` and confirm Postgres/Redis are up
+- [x] **You**: run `docker compose up -d` and confirm Postgres/Redis are up
 - [ ] **You**: open a free Upstox demat account (KYC via PAN + Aadhaar, zero
   balance is fine), register as a developer, get an API key + secret
 - [ ] **You**: download Upstox's instrument master file, pick ~20-30 curated
@@ -31,12 +31,14 @@ of done" — don't start the next phase until it's met.
 - [x] `apps/worker` placeholder proves DB access works from a second process
   (`apps/worker/src/index.ts`)
 - [x] Root `dev:api` / `dev:worker` load `.env` before process start (PrismaClient
-  is constructed at import time); API `dev` uses `tsx` so workspace TS packages
-  resolve
-- [x] Money display helpers tested in `libs/common` (`money.spec.ts`)
-- [ ] **You**: `pnpm install && pnpm db:generate && pnpm db:migrate && pnpm db:seed`
-- [ ] **You**: `pnpm dev:api` → confirm `GET /health` returns `{ status: "ok", userCount: 2 }`
-- [ ] **You**: `pnpm dev:worker` → confirm it logs the same user count
+  is constructed at import time); shared libraries build first so both
+  development and production resolve their compiled package entry points
+- [x] Exact money conversion/display helpers tested in `libs/common`
+  (`money.spec.ts`); decimal input is parsed from strings, never floats
+- [x] API health controller has an automated unit test
+- [x] **You**: `pnpm install && pnpm db:generate && pnpm db:migrate && pnpm db:seed`
+- [x] **You**: `pnpm dev:api` → confirm `GET /health` returns `{ status: "ok", userCount: 2 }`
+- [x] **You**: `pnpm dev:worker` → confirm it logs the same user count
 - **Done when**: both commands above show `userCount: 2`, and
   `pnpm db:studio` shows the seeded users, holdings table (empty), and 3
   price snapshots.
@@ -45,17 +47,19 @@ of done" — don't start the next phase until it's met.
 - [ ] Create an Auth0 tenant, API identifier (this becomes `AUTH0_AUDIENCE`),
   and a test user
 - [ ] Add real `AUTH0_DOMAIN` / `AUTH0_AUDIENCE` values to `.env`
-- [ ] `apps/api`: add `@nestjs/passport`, `passport-jwt`, `jwks-rsa`
-- [ ] `apps/api/src/auth/auth.module.ts` — mark `@Global()`
-- [ ] `apps/api/src/auth/jwt.strategy.ts` — validates incoming JWTs against
+- [x] `apps/api`: add `@nestjs/passport`, `passport-jwt`, `jwks-rsa`
+- [x] `apps/api/src/prisma/` — global injectable `PrismaService`
+- [x] `apps/api/src/auth/auth.module.ts` — mark `@Global()`
+- [x] `apps/api/src/auth/jwt.strategy.ts` — validates incoming JWTs against
   Auth0's JWKS endpoint using `AUTH0_DOMAIN` and checks `AUTH0_AUDIENCE`
-- [ ] `apps/api/src/auth/jwt-auth.guard.ts`
-- [ ] `apps/api/src/auth/public.decorator.ts` — `@Public()` to opt a route
+- [x] `apps/api/src/auth/jwt-auth.guard.ts`
+- [x] `apps/api/src/auth/public.decorator.ts` — `@Public()` to opt a route
   out of the otherwise-global guard
-- [ ] Register the guard globally via `APP_GUARD` in `app.module.ts`
-- [ ] Mark `HealthController`'s route `@Public()` so it stays open
-- [ ] Integration test: request without a token → 401; with a valid Auth0
-  token → 200
+- [x] Register the guard globally via `APP_GUARD` in `app.module.ts`
+- [x] Mark `HealthController`'s route `@Public()` so it stays open
+- [x] Integration test: request without a token → 401; with a correctly
+  signed RS256 token matching Auth0 issuer/audience semantics → 200 (JWKS
+  retrieval is mocked, so CI does not depend on Auth0)
 - **Done when**: the test above passes and `/health` still works
   unauthenticated.
 

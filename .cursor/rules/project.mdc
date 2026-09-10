@@ -14,8 +14,7 @@ explicitly since it applies to every session.
 
 TradeSim: a paper-trading simulator rebuilt to demonstrate production-grade
 backend engineering — real-time market data, correct concurrent financial
-transactions, and (later) an AI portfolio feature. Code will be read by
-interviewers; optimize for correctness and clarity over cleverness.
+transactions, and (later) an AI portfolio feature. Optimize for correctness and clarity over cleverness.
 
 ## Stack
 

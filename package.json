@@ -3,15 +3,16 @@
   "private": true,
   "packageManager": "pnpm@9.0.0",
   "scripts": {
-    "dev:api": "dotenv -e .env -- pnpm --filter @tradesim/api dev",
-    "dev:worker": "dotenv -e .env -- pnpm --filter @tradesim/worker dev",
-    "build": "pnpm -r build",
-    "lint": "pnpm -r lint",
-    "test": "pnpm -r test",
-    "db:generate": "dotenv -e .env -- pnpm --filter @tradesim/db exec prisma generate",
-    "db:migrate": "dotenv -e .env -- pnpm --filter @tradesim/db exec prisma migrate dev",
-    "db:seed": "dotenv -e .env -- pnpm --filter @tradesim/db exec tsx prisma/seed.ts",
-    "db:studio": "dotenv -e .env -- pnpm --filter @tradesim/db exec prisma studio"
+    "build:libs": "pnpm --filter @tradesim/common build && pnpm --filter @tradesim/db build",
+    "dev:api": "pnpm build:libs && dotenv -e .env -- pnpm --filter @tradesim/api dev",
+    "dev:worker": "pnpm build:libs && dotenv -e .env -- pnpm --filter @tradesim/worker dev",
+    "build": "pnpm -r --workspace-concurrency=1 build",
+    "lint": "pnpm -r --workspace-concurrency=1 lint",
+    "test": "pnpm -r --workspace-concurrency=1 test",
+    "db:generate": "dotenv -e .env -- pnpm --filter @tradesim/db exec -- prisma generate",
+    "db:migrate": "dotenv -e .env -- pnpm --filter @tradesim/db exec -- prisma migrate dev",
+    "db:seed": "dotenv -e .env -- pnpm --filter @tradesim/db exec -- tsx prisma/seed.ts",
+    "db:studio": "dotenv -e .env -- pnpm --filter @tradesim/db exec -- prisma studio"
   },
   "devDependencies": {
     "typescript": "^5.6.0",
