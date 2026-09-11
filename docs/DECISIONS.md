@@ -74,5 +74,32 @@ source lies outside app `rootDir`); widening each app's `rootDir` (produces an
 incorrect output layout). Phase 2 now uses a Nest `PrismaService` in the API;
 the worker continues to use the shared client.
 
+## 2026-09-11 — Use Nest CLI watch mode for the API
+
+**Why**: Phase 2 introduced constructor-injected Nest providers. `tsx watch`
+transpiles quickly but does not emit the decorator metadata Nest needs to
+resolve constructor parameter types, so `ConfigService` reached `JwtStrategy`
+as `undefined`. `nest start --watch` uses the configured TypeScript compiler
+and preserves dependency-injection metadata. Shared libraries are already
+built before API startup, so the original cross-workspace compilation issue
+does not return.
+
+**Alternatives considered**: adding explicit `@Inject()` decorators to every
+constructor (works but is repetitive and easy to forget); continuing with
+`tsx` (unsafe for conventionally injected Nest providers).
+
+## 2026-09-11 — Serialize exact prices as decimal strings at JSON boundaries
+
+**Why**: Prices are `BigInt` paise in services and database calculations, but
+native JSON cannot serialize `BigInt`. Redis cache values and HTTP DTOs use
+base-10 strings and convert back to `BigInt` immediately when read. The
+cache-aside path treats Redis reads/writes as best-effort so a cache outage or
+malformed entry falls back to PostgreSQL rather than failing price requests.
+
+**Alternatives considered**: JSON numbers (can silently lose integer
+precision); display-formatted rupee strings (mix presentation with the domain
+value); failing requests when Redis is unavailable (makes an optimization a
+hard dependency).
+
 <!-- Add new entries above this line, newest first. -->
 

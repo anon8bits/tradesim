@@ -4,7 +4,9 @@ import { APP_GUARD } from "@nestjs/core";
 import { AuthModule } from "./auth/auth.module";
 import { JwtAuthGuard } from "./auth/jwt-auth.guard";
 import { HealthController } from "./health/health.controller";
+import { MarketModule } from "./market/market.module";
 import { PrismaModule } from "./prisma/prisma.module";
+import { RedisModule } from "./redis/redis.module";
 
 @Module({
   imports: [
@@ -12,7 +14,9 @@ import { PrismaModule } from "./prisma/prisma.module";
       isGlobal: true,
     }),
     PrismaModule,
+    RedisModule,
     AuthModule,
+    MarketModule,
   ],
   controllers: [HealthController],
   providers: [

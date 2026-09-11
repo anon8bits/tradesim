@@ -44,3 +44,9 @@ export function rupeesToPaise(rupees: string): bigint {
  * the worker, so it's a config change rather than a code change later.
  */
 export const CURATED_SYMBOLS = ["RELIANCE", "TCS", "INFY"] as const;
+
+/**
+ * Index symbols exposed by GET /indices. Populate this alongside
+ * CURATED_SYMBOLS when the real Upstox instrument list is selected.
+ */
+export const CURATED_INDEX_SYMBOLS: readonly string[] = [];

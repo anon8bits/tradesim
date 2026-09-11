@@ -44,9 +44,9 @@ of done" — don't start the next phase until it's met.
   price snapshots.
 
 ## Phase 2 — Auth
-- [ ] Create an Auth0 tenant, API identifier (this becomes `AUTH0_AUDIENCE`),
+- [x] Create an Auth0 tenant, API identifier (this becomes `AUTH0_AUDIENCE`),
   and a test user
-- [ ] Add real `AUTH0_DOMAIN` / `AUTH0_AUDIENCE` values to `.env`
+- [x] Add real `AUTH0_DOMAIN` / `AUTH0_AUDIENCE` values to `.env`
 - [x] `apps/api`: add `@nestjs/passport`, `passport-jwt`, `jwks-rsa`
 - [x] `apps/api/src/prisma/` — global injectable `PrismaService`
 - [x] `apps/api/src/auth/auth.module.ts` — mark `@Global()`
@@ -64,20 +64,21 @@ of done" — don't start the next phase until it's met.
   unauthenticated.
 
 ## Phase 3 — Market data read path (fake the data source first)
-- [ ] `apps/api/src/redis/redis.module.ts` — `@Global()`, wraps an `ioredis`
+- [x] `apps/api/src/redis/redis.module.ts` — `@Global()`, wraps an `ioredis`
   client (needed now, ahead of ingestion, because the cache-aside logic
   depends on it)
-- [ ] `apps/api/src/market/market.module.ts`
-- [ ] `apps/api/src/market/market.controller.ts` — `GET /indices`,
+- [x] `apps/api/src/market/market.module.ts`
+- [x] `apps/api/src/market/market.controller.ts` — `GET /indices`,
   `GET /stocks/:symbol`
-- [ ] `apps/api/src/market/market.service.ts` — cache-aside: check Redis
+- [x] `apps/api/src/market/market.service.ts` — cache-aside: check Redis
   first (`price:{symbol}`), fall back to the latest `PriceSnapshot` row via
   Prisma on a miss, populate the cache after
-- [ ] `apps/api/src/market/dto/` — response DTOs
-- [ ] Do NOT wait for real Upstox data — the 3 seeded fake prices from Phase
+- [x] `apps/api/src/market/dto/` — response DTOs (exact BigInt paise values
+  are serialized as decimal strings because JSON cannot encode BigInt)
+- [x] Do NOT wait for real Upstox data — the 3 seeded fake prices from Phase
   1 are enough to build and fully test this layer
-- [ ] Unit tests (`market.service.spec.ts`) with mocked Prisma + Redis
-- [ ] Integration test covering both the cache-hit and cache-miss path
+- [x] Unit tests (`market.service.spec.ts`) with mocked Prisma + Redis
+- [x] Integration test covering both the cache-hit and cache-miss path
 - **Done when**: endpoints return correct data whether or not Redis has a
   cached value, proven by tests against the fake seeded data.
 

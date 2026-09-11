@@ -45,6 +45,21 @@ Notes:
   product — keep it framed that way in anything public-facing about this
   project.
 
+## Market data read path
+
+`MarketService` normalizes symbols to uppercase and reads `price:{symbol}`
+from Redis first. A miss or malformed/unavailable cache entry falls back to
+the latest matching `PriceSnapshot` in Postgres, then best-effort repopulates
+Redis. Cache outages therefore degrade to database reads instead of taking
+the market endpoint down.
+
+Prices remain `BigInt` paise inside the service. Redis JSON and HTTP response
+DTOs encode `priceCents` as a base-10 string because JSON cannot represent
+`BigInt` and converting to a JavaScript number could lose precision. The
+placeholder `CURATED_INDEX_SYMBOLS` list is intentionally empty until the
+real Upstox instrument selection is completed, so `GET /indices` currently
+returns an empty list.
+
 ## Order execution flow
 
 ```mermaid

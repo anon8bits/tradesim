@@ -76,12 +76,14 @@ portfolio feature. Optimize for correctness and clarity over cleverness.
 **Phase 0 (local Docker) and Phase 1 (data foundation) are done.** Migration
 `20260905190945_init` is applied, seed data is in Postgres (2 users, 0
 holdings, 3 price snapshots), and the API health and shared money helpers
-have automated tests. Phase 2's Auth0/JWKS strategy, global guard, public
-health route, and injectable Prisma service are implemented and tested;
-creating the real Auth0 tenant and adding its domain/audience to `.env`
-remain manual prerequisites before Phase 2 is complete. The Upstox
-account/curated symbol list is also still a placeholder. Modules from Phase
-3 onward (`market/`, `portfolio/`, `orders/`, `realtime/`, `ai/`, and the
+have automated tests. **Phase 2 (Auth0 authentication) is also done:** its
+JWKS strategy, global guard, public health route, and injectable Prisma
+service are implemented and tested, and the real Auth0 tenant configuration
+is present locally. **Phase 3 (market read path) is done:** the global Redis
+client and authenticated market endpoints use cache-aside reads with exact
+price serialization, covered by unit tests and live Postgres/Redis integration
+tests. The Upstox account/curated symbol list is still a placeholder. Modules
+from Phase 4 onward (`portfolio/`, `orders/`, `realtime/`, `ai/`, and the
 worker's `execution/`/`ingestion/`) do not exist yet.
 
 **Full phase-by-phase status, with checkboxes, lives in `docs/TASKS.md` — that
@@ -105,6 +107,22 @@ interesting.
 6. If you made a non-obvious design call along the way, add a short entry to
    `docs/DECISIONS.md` before moving on.
 7. Only then move to the next phase.
+
+### Phase completion gate
+
+Before checking off a phase or starting the next one, every agent must:
+
+- Run the repository lint, test, and production build commands required by
+  the files it changed, plus every phase-specific suite named in this file or
+  `docs/TASKS.md`.
+- Verify the phase's complete **Done when** condition, including runtime or
+  integration checks. Human-only checks may be accepted only after the user
+  explicitly confirms them.
+- Fix failures within scope. If a required check cannot run or fails, leave
+  the phase incomplete and report the exact blocker; never mark it done based
+  only on code inspection.
+- Update `docs/TASKS.md` only after the checks pass, and list the checks run in
+  the final handoff.
 
 If a `docs/TASKS.md` item is marked `**You**:` — that's a manual step
 (opening an account, running a command, checking output) the human needs to

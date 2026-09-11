@@ -3,10 +3,11 @@
   "version": "0.0.1",
   "private": true,
   "scripts": {
-    "dev": "tsx watch src/main.ts",
+    "dev": "nest start --watch",
     "build": "nest build",
     "start": "node dist/main.js",
     "lint": "eslint src",
+    "pretest": "pnpm --filter @tradesim/common build && pnpm --filter @tradesim/db build",
     "test": "jest --runInBand"
   },
   "dependencies": {
@@ -17,6 +18,7 @@
     "@nestjs/platform-express": "^10.4.0",
     "@tradesim/common": "workspace:*",
     "@tradesim/db": "workspace:*",
+    "ioredis": "^6.0.0",
     "jwks-rsa": "^4.1.0",
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",
