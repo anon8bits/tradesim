@@ -83,11 +83,11 @@ of done" — don't start the next phase until it's met.
   cached value, proven by tests against the fake seeded data.
 
 ## Phase 4 — Portfolio read path
-- [ ] `apps/api/src/portfolio/portfolio.module.ts`
-- [ ] `apps/api/src/portfolio/portfolio.controller.ts` — `GET /portfolio`
-- [ ] `apps/api/src/portfolio/portfolio.service.ts` — joins `Holding` rows
+- [x] `apps/api/src/portfolio/portfolio.module.ts`
+- [x] `apps/api/src/portfolio/portfolio.controller.ts` — `GET /portfolio`
+- [x] `apps/api/src/portfolio/portfolio.service.ts` — joins `Holding` rows
   with current prices (via `MarketService`) to compute unrealized P&L
-- [ ] Unit tests (`portfolio.service.spec.ts`): zero holdings, multiple buy
+- [x] Unit tests (`portfolio.service.spec.ts`): zero holdings, multiple buy
   lots at different prices (average cost basis), a fully sold position
 - **Done when**: all three P&L edge cases above are covered by passing tests.
 

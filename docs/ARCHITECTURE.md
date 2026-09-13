@@ -60,6 +60,21 @@ placeholder `CURATED_INDEX_SYMBOLS` list is intentionally empty until the
 real Upstox instrument selection is completed, so `GET /indices` currently
 returns an empty list.
 
+## Portfolio read path
+
+`GET /portfolio` uses the authenticated JWT `sub` to find the corresponding
+`User.auth0Id`. Active holdings (`quantity > 0`) are joined with current
+prices through `MarketService`. For each holding:
+
+- market value = current price × quantity
+- cost basis = persisted weighted average cost × quantity
+- unrealized P&L = market value − cost basis
+
+All three calculations and portfolio totals use `BigInt` paise. HTTP DTOs
+serialize the resulting money fields as exact decimal strings. Quantity-zero
+holdings are omitted and do not trigger price lookups; Phase 5 order execution
+is responsible for maintaining each holding's weighted average cost.
+
 ## Order execution flow
 
 ```mermaid

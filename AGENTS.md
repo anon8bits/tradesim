@@ -82,9 +82,12 @@ service are implemented and tested, and the real Auth0 tenant configuration
 is present locally. **Phase 3 (market read path) is done:** the global Redis
 client and authenticated market endpoints use cache-aside reads with exact
 price serialization, covered by unit tests and live Postgres/Redis integration
-tests. The Upstox account/curated symbol list is still a placeholder. Modules
-from Phase 4 onward (`portfolio/`, `orders/`, `realtime/`, `ai/`, and the
-worker's `execution/`/`ingestion/`) do not exist yet.
+tests. **Phase 4 (portfolio read path) is done:** the authenticated portfolio
+endpoint calculates holdings value and unrealized P&L entirely with `BigInt`,
+including zero-holding, weighted-average-cost, and fully-sold-position tests.
+The Upstox account/curated symbol list is still a placeholder. Modules from
+Phase 5 onward (`orders/`, `realtime/`, `ai/`, and the worker's
+`execution/`/`ingestion/`) do not exist yet.
 
 **Full phase-by-phase status, with checkboxes, lives in `docs/TASKS.md` — that
 file, not this summary, is the source of truth for what to build next.**

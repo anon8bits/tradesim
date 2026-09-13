@@ -5,6 +5,7 @@ import { AuthModule } from "./auth/auth.module";
 import { JwtAuthGuard } from "./auth/jwt-auth.guard";
 import { HealthController } from "./health/health.controller";
 import { MarketModule } from "./market/market.module";
+import { PortfolioModule } from "./portfolio/portfolio.module";
 import { PrismaModule } from "./prisma/prisma.module";
 import { RedisModule } from "./redis/redis.module";
 
@@ -17,6 +18,7 @@ import { RedisModule } from "./redis/redis.module";
     RedisModule,
     AuthModule,
     MarketModule,
+    PortfolioModule,
   ],
   controllers: [HealthController],
   providers: [
