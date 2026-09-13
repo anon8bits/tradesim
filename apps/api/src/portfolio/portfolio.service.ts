@@ -10,6 +10,7 @@ export interface PortfolioHoldingValue {
   symbol: string;
   quantity: number;
   avgCostCents: bigint;
+  costBasisCents: bigint;
   currentPriceCents: bigint;
   marketValueCents: bigint;
   unrealizedPnlCents: bigint;
@@ -53,12 +54,13 @@ export class PortfolioService {
 
         const quantity = BigInt(holding.quantity);
         const marketValueCents = price.priceCents * quantity;
-        const costBasisCents = holding.avgCostCents * quantity;
+        const costBasisCents = holding.costBasisCents;
 
         return {
           symbol: holding.symbol,
           quantity: holding.quantity,
           avgCostCents: holding.avgCostCents,
+          costBasisCents,
           currentPriceCents: price.priceCents,
           marketValueCents,
           unrealizedPnlCents: marketValueCents - costBasisCents,

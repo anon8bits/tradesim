@@ -101,5 +101,45 @@ precision); display-formatted rupee strings (mix presentation with the domain
 value); failing requests when Redis is unavailable (makes an optimization a
 hard dependency).
 
+## 2026-09-13 — Globally sequential BullMQ OSS order execution
+
+**Why**: Per-group concurrency is a BullMQ Pro feature, not available in the
+open-source queue selected for this project. The execution worker therefore
+uses global concurrency 1. This is stricter and lower-throughput than the
+original per-user grouping design, but it guarantees same-user orders never
+overlap. A parameterized `SELECT ... FOR UPDATE` user-row lock remains the
+database correctness boundary and is the one documented raw SQL exception.
+
+**Tradeoff accepted**: orders for different users are also serialized. If
+throughput later matters, adopt BullMQ Pro groups or a tested distributed
+per-user lock before raising worker concurrency; never raise it without a
+replacement sequencing mechanism.
+
+**Alternatives considered**: one queue per user (unbounded queue lifecycle);
+using `jobId=userId` (incorrectly deduplicates legitimate orders); relying only
+on concurrent workers plus row locks (keeps balances safe but violates the
+explicit no-overlap rule).
+
+## 2026-09-13 — Database-backed queue reconciliation and event delivery state
+
+**Why**: Writing an order to PostgreSQL and enqueueing it in Redis cannot be
+one atomic transaction. PostgreSQL is therefore the durable source: the API
+returns 202 once the `PENDING` row exists, attempts immediate enqueue, and a
+worker loop reconciles pending rows using deterministic order/job ids. For the
+opposite boundary, order outcome, rejection reason, and unpublished-event
+state commit together; Redis publication happens afterward and sets
+`eventPublishedAt`, giving retryable at-least-once delivery without executing
+the trade twice.
+
+Exact `Holding.costBasisCents` is persisted separately from the integer-paise
+display average so repeated buys do not compound division truncation. Additive
+database checks reject invalid negative balances/holdings/prices and
+non-positive order quantities even if data bypasses the HTTP validator.
+
+**Alternatives considered**: marking an order rejected when enqueue responds
+ambiguously (races a worker that received the job); a full generic outbox
+table/dispatcher (more infrastructure than this single event flow needs);
+storing only rounded average cost (loses real basis over repeated trades).
+
 <!-- Add new entries above this line, newest first. -->
 

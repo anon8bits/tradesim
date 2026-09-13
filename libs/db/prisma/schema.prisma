@@ -44,6 +44,7 @@ model Holding {
   symbol        String
   quantity      Int
   avgCostCents  BigInt
+  costBasisCents BigInt  @default(0)
   updatedAt     DateTime @updatedAt
 
   @@unique([userId, symbol])
@@ -61,6 +62,8 @@ model Order {
   // Fill price is set only when the worker executes the order, not at
   // submission time — the API never guesses a price.
   fillPriceCents BigInt?
+  rejectionReason String?
+  eventPublishedAt DateTime?
   createdAt   DateTime    @default(now())
   processedAt DateTime?
 

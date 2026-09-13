@@ -7,6 +7,7 @@ export class PortfolioHoldingResponseDto {
   readonly symbol: string;
   readonly quantity: number;
   readonly avgCostCents: string;
+  readonly costBasisCents: string;
   readonly currentPriceCents: string;
   readonly marketValueCents: string;
   readonly unrealizedPnlCents: string;
@@ -15,6 +16,7 @@ export class PortfolioHoldingResponseDto {
     this.symbol = holding.symbol;
     this.quantity = holding.quantity;
     this.avgCostCents = holding.avgCostCents.toString();
+    this.costBasisCents = holding.costBasisCents.toString();
     this.currentPriceCents = holding.currentPriceCents.toString();
     this.marketValueCents = holding.marketValueCents.toString();
     this.unrealizedPnlCents = holding.unrealizedPnlCents.toString();

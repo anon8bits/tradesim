@@ -52,11 +52,13 @@ portfolio feature. Optimize for correctness and clarity over cleverness.
     ticks are also buffered and flushed to Postgres `price_snapshots` in small
     batches every few seconds (throughput-sensitive path, deliberately not
     synchronous with the cache/pub-sub path).
-  - **order execution**: a BullMQ queue consumes orders, grouped/keyed by user
-    id so two orders for the same user never process concurrently. Each job
-    wraps the whole check-and-apply logic in a single Postgres transaction
-    with a row-level lock on the user (`SELECT ... FOR UPDATE`) → commits or
-    rejects atomically → publishes the fill event only after commit.
+  - **order execution**: a BullMQ queue consumes jobs carrying `userId`. The
+    open-source worker currently runs at global concurrency 1 (BullMQ
+    per-group concurrency is a Pro feature), so two same-user orders never
+    overlap. Each job wraps the whole check-and-apply logic in a single
+    Postgres transaction with a row-level lock on the user
+    (`SELECT ... FOR UPDATE`) → commits or rejects atomically → publishes the
+    fill event only after commit.
 - Full diagrams live in `docs/ARCHITECTURE.md`.
 
 ## Conventions
@@ -85,9 +87,13 @@ price serialization, covered by unit tests and live Postgres/Redis integration
 tests. **Phase 4 (portfolio read path) is done:** the authenticated portfolio
 endpoint calculates holdings value and unrealized P&L entirely with `BigInt`,
 including zero-holding, weighted-average-cost, and fully-sold-position tests.
-The Upstox account/curated symbol list is still a placeholder. Modules from
-Phase 5 onward (`orders/`, `realtime/`, `ai/`, and the worker's
-`execution/`/`ingestion/`) do not exist yet.
+**Phase 5 (orders and execution) is done:** authenticated order submission,
+queue-global sequential BullMQ processing, pending-order reconciliation,
+transactional row locking, exact aggregate cost basis, idempotency,
+retryable post-commit events, a DLQ, DB financial constraints, and repeated
+real-Postgres contention tests are in place. The Upstox account/curated symbol
+list is still a placeholder. Modules from Phase 6 onward (`realtime/`, `ai/`,
+and worker `ingestion/`) do not exist yet.
 
 **Full phase-by-phase status, with checkboxes, lives in `docs/TASKS.md` — that
 file, not this summary, is the source of truth for what to build next.**

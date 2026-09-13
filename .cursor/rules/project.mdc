@@ -45,8 +45,10 @@ not polled). pnpm workspaces monorepo: `libs/db` (Prisma) and `libs/common`
   row-level lock (`SELECT ... FOR UPDATE`) on the user — check funds/shares,
   debit/credit, update holdings, mark the order, all atomic. See the order
   execution flow in `docs/ARCHITECTURE.md`.
-- Orders for the same user are never processed concurrently — BullMQ jobs
-  are grouped/keyed by `userId`.
+- Orders for the same user are never processed concurrently. The BullMQ OSS
+  queue currently enforces global concurrency 1 across workers; raising it
+  requires a per-user sequencing mechanism in addition to the Postgres row
+  lock.
 - Redis events (order-filled, price-tick) publish only AFTER a DB commit,
   never before.
 - Anything touching money, balances, holdings, or orders needs a test —

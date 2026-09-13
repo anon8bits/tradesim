@@ -9,6 +9,7 @@
     "build": "pnpm -r --workspace-concurrency=1 build",
     "lint": "pnpm -r --workspace-concurrency=1 lint",
     "test": "pnpm -r --workspace-concurrency=1 test",
+    "test:concurrency": "dotenv -e .env -- pnpm --filter @tradesim/worker test:concurrency",
     "db:generate": "dotenv -e .env -- pnpm --filter @tradesim/db exec -- prisma generate",
     "db:migrate": "dotenv -e .env -- pnpm --filter @tradesim/db exec -- prisma migrate dev",
     "db:seed": "dotenv -e .env -- pnpm --filter @tradesim/db exec -- tsx prisma/seed.ts",

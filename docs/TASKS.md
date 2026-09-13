@@ -92,32 +92,39 @@ of done" — don't start the next phase until it's met.
 - **Done when**: all three P&L edge cases above are covered by passing tests.
 
 ## Phase 5 — Orders and execution (the hard part — budget the most time here)
-- [ ] Add BullMQ (`@nestjs/bullmq`, `bullmq`) to both `apps/api` (producer)
-  and `apps/worker` (consumer)
-- [ ] `apps/api/src/orders/orders.module.ts`
-- [ ] `apps/api/src/orders/dto/create-order.dto.ts` — `class-validator`
+- [x] Add `@nestjs/bullmq` + `bullmq` to `apps/api` (producer) and BullMQ's
+  direct worker API to `apps/worker` (consumer)
+- [x] `apps/api/src/orders/orders.module.ts`
+- [x] `apps/api/src/orders/dto/create-order.dto.ts` — `class-validator`
   decorated (symbol, side, quantity)
-- [ ] `apps/api/src/orders/orders.controller.ts` — `POST /orders`
-- [ ] `apps/api/src/orders/orders.service.ts` — validates the DTO only
+- [x] `apps/api/src/orders/orders.controller.ts` — `POST /orders`
+- [x] `apps/api/src/orders/orders.service.ts` — validates the DTO only
   (never balance — that's the worker's job), writes a `PENDING` `Order` row,
-  enqueues a BullMQ job keyed/grouped by `userId`, returns `202 Accepted`
+  enqueues a BullMQ job carrying `userId`, returns `202 Accepted`
   immediately
-- [ ] `apps/worker/src/execution/order-processor.ts` — BullMQ worker,
-  concurrency configured so jobs for the same user never run in parallel
-- [ ] `apps/worker/src/execution/execute-order.ts` — the correctness-critical
+- [x] `apps/worker/src/execution/order-processor.ts` — BullMQ OSS worker uses
+  queue-global concurrency 1, which strictly prevents same-user overlap even
+  across processes; row locks remain the database correctness guarantee
+- [x] Pending-order reconciliation loop re-enqueues durable DB rows by
+  deterministic order/job id after an API-to-Redis handoff failure
+- [x] `apps/worker/src/execution/execute-order.ts` — the correctness-critical
   core: `prisma.$transaction` wrapping a `SELECT ... FOR UPDATE` (or
   `Serializable` isolation) on the user row, check funds/shares, debit or
   credit balance, upsert the `Holding`, mark the `Order` `FILLED` or
   `REJECTED`, insert a `Transaction` row — all inside the one transaction
-- [ ] Idempotency guard at the top of `execute-order.ts`: no-op if the order
+- [x] Idempotency guard at the top of `execute-order.ts`: no-op if the order
   is no longer `PENDING`
-- [ ] Publish `order.filled` / `order.rejected` to Redis pub/sub only AFTER
-  the transaction commits — never before
-- [ ] Configure a BullMQ dead-letter queue for jobs that exhaust retries,
+- [x] Publish filled/rejected order events to Redis pub/sub only AFTER
+  the transaction commits — never before; persist delivery state so a failed
+  publication retries without reapplying the trade
+- [x] Persist exact aggregate holding cost basis separately from the
+  integer-paise display average, with DB constraints protecting nonnegative
+  balances/holdings/prices and positive order quantities
+- [x] Configure a BullMQ dead-letter queue for jobs that exhaust retries,
   plus an alert/log when that happens
-- [ ] `execute-order.spec.ts` — unit tests: insufficient funds, insufficient
+- [x] `execute-order.spec.ts` — unit tests: insufficient funds, insufficient
   shares on sell, idempotent replay of an already-processed order
-- [ ] `concurrency.spec.ts` — **the single most important test in this
+- [x] `concurrency.spec.ts` — **the single most important test in this
   project**: fire many parallel buy/sell orders at the same user and assert
   the final balance and holdings are exactly correct, every run (run it
   several times, not once)

@@ -50,3 +50,23 @@ export const CURATED_SYMBOLS = ["RELIANCE", "TCS", "INFY"] as const;
  * CURATED_SYMBOLS when the real Upstox instrument list is selected.
  */
 export const CURATED_INDEX_SYMBOLS: readonly string[] = [];
+
+export const ORDER_QUEUE_NAME = "orders";
+export const ORDER_DEAD_LETTER_QUEUE_NAME = "orders-dead-letter";
+export const ORDER_EVENTS_CHANNEL = "order.events";
+
+export interface OrderJobData {
+  orderId: string;
+  userId: string;
+}
+
+export interface OrderExecutionEvent {
+  orderId: string;
+  userId: string;
+  symbol: string;
+  side: "BUY" | "SELL";
+  quantity: number;
+  status: "FILLED" | "REJECTED";
+  fillPriceCents?: string;
+  reason?: string;
+}

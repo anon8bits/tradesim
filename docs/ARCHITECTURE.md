@@ -67,13 +67,13 @@ returns an empty list.
 prices through `MarketService`. For each holding:
 
 - market value = current price × quantity
-- cost basis = persisted weighted average cost × quantity
+- cost basis = persisted exact aggregate holding basis
 - unrealized P&L = market value − cost basis
 
 All three calculations and portfolio totals use `BigInt` paise. HTTP DTOs
 serialize the resulting money fields as exact decimal strings. Quantity-zero
 holdings are omitted and do not trigger price lookups; Phase 5 order execution
-is responsible for maintaining each holding's weighted average cost.
+is responsible for maintaining each holding's exact basis and display average.
 
 ## Order execution flow
 
@@ -88,7 +88,9 @@ flowchart TB
 Key correctness rules (do not weaken these without discussion):
 
 1. Order jobs for the **same user** must be processed sequentially, not in
-   parallel — group/key BullMQ jobs by user id.
+   parallel. The BullMQ OSS worker currently enforces the stronger global
+   concurrency limit of 1; raising concurrency requires a per-user sequencing
+   mechanism (BullMQ Pro groups or a distributed per-user lock).
 2. All balance/holding reads and writes for a single order happen inside
    **one Postgres transaction** with a row-level lock (`SELECT ... FOR UPDATE`
    or Prisma `SERIALIZABLE` isolation).
@@ -96,6 +98,28 @@ Key correctness rules (do not weaken these without discussion):
    already-`rejected` order is a no-op.
 4. Redis events (order-filled, price-tick) are published **after** the DB
    transaction commits, never before.
+
+The API validates and durably stores a `PENDING` order, then best-effort
+enqueues only its `orderId` and `userId`; it never checks balances. A worker
+reconciliation loop periodically re-enqueues every `PENDING` row using the
+order id as BullMQ's deterministic job id, so a Redis outage between the
+database write and enqueue cannot strand or duplicate an order.
+
+The worker locks the user row with the one intentional raw query
+(`SELECT ... FOR UPDATE`) because Prisma has no row-lock API. Price lookup,
+funds/shares checks, balance and holding mutations, final order status, and
+ledger insertion all occur inside that transaction. Filled/rejected events
+are string-safe JSON published after commit. `eventPublishedAt` and the
+persisted rejection reason allow a failed publication to retry without
+reapplying the trade; delivery is at-least-once. Jobs retry with exponential
+backoff and move to a separate dead-letter queue with an alert after exhausting
+attempts.
+
+Buy execution keeps both `Holding.costBasisCents` (the exact aggregate basis)
+and `avgCostCents` (the integer-paise display average). New buys add their exact
+trade value to the basis, avoiding compounded rounding loss. Sells remove a
+proportional basis, allocating any sub-paise division remainder to the shares
+still held. A fully sold position retains zero quantity, basis, and average.
 
 ## Data model
 
@@ -106,8 +130,8 @@ Display-only conversion helpers live in `libs/common` (`paiseToDisplayRupees`).
 | Model | Purpose | Key fields |
 |---|---|---|
 | `User` | One row per trader | `cashBalanceCents` (BigInt), `auth0Id` (links to Auth0 identity) |
-| `Holding` | Current position per user+symbol | `quantity`, `avgCostCents`; unique on `(userId, symbol)` |
-| `Order` | A buy/sell request and its outcome | `side` (BUY/SELL), `status` (PENDING/FILLED/REJECTED), `fillPriceCents` (set only on execution, never at submission) |
+| `Holding` | Current position per user+symbol | `quantity`, exact `costBasisCents`, display `avgCostCents`; unique on `(userId, symbol)` |
+| `Order` | A buy/sell request and its outcome | `side` (BUY/SELL), `status` (PENDING/FILLED/REJECTED), `fillPriceCents` (set only on execution), rejection/event-delivery metadata |
 | `Transaction` | Append-only ledger entry | `amountCents` (signed: negative = debit, positive = credit), optionally linked to an `Order` |
 | `PriceSnapshot` | Time-series of prices | `symbol`, `priceCents`, `ts`; indexed on `(symbol, ts)` |
 

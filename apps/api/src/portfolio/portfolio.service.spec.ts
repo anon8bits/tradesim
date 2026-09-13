@@ -46,6 +46,7 @@ describe("PortfolioService", () => {
           symbol: "TCS",
           quantity: 3,
           avgCostCents: 15_000n,
+          costBasisCents: 45_000n,
         },
       ],
     });
@@ -62,6 +63,7 @@ describe("PortfolioService", () => {
           symbol: "TCS",
           quantity: 3,
           avgCostCents: 15_000n,
+          costBasisCents: 45_000n,
           currentPriceCents: 20_000n,
           marketValueCents: 60_000n,
           unrealizedPnlCents: 15_000n,
@@ -83,6 +85,7 @@ describe("PortfolioService", () => {
           symbol: "INFY",
           quantity: 0,
           avgCostCents: 154_000n,
+          costBasisCents: 0n,
         },
       ],
     });

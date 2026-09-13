@@ -11,6 +11,7 @@
     "test": "jest --runInBand"
   },
   "dependencies": {
+    "@nestjs/bullmq": "^10.2.3",
     "@nestjs/common": "^10.4.0",
     "@nestjs/config": "^3.3.0",
     "@nestjs/core": "^10.4.0",
@@ -18,6 +19,9 @@
     "@nestjs/platform-express": "^10.4.0",
     "@tradesim/common": "workspace:*",
     "@tradesim/db": "workspace:*",
+    "bullmq": "^5.81.5",
+    "class-transformer": "^0.5.1",
+    "class-validator": "^0.15.1",
     "ioredis": "^6.0.0",
     "jwks-rsa": "^4.1.0",
     "passport": "^0.7.0",
