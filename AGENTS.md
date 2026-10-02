@@ -25,10 +25,12 @@ portfolio feature. Optimize for correctness and clarity over cleverness.
   `docs/DECISIONS.md`.
 - **Cache / queue / pub-sub**: Redis (via `ioredis` + BullMQ).
 - **Auth**: Auth0 (JWT, validated via `passport-jwt` + JWKS).
-- **Market data**: Upstox API v2 WebSocket market-data feed (push-based, not
-  polled), scoped to a curated list of ~20-30 NSE symbols/indices. Access
-  tokens expire daily (~3:30 AM IST) and are refreshed by an automated
-  TOTP-based daily auth job — see `docs/ARCHITECTURE.md`.
+- **Market data**: Upstox Market Data Feed V3 (push-based, not polled), using
+  a one-year read-only Analytics Token from the environment. The fixed website
+  universe is the 100 validated NSE equities supplied in root
+  `nse_top_100.json` and moved into `libs/common/src/data/` during Phase 6; the
+  worker subscribes to all 100 in LTPC mode and the API searches/paginates this
+  local catalog without calling Upstox per request.
 - **Frontend**: React (separate repo/app, not covered by this file yet).
 - **Infra**: Docker Compose locally; Railway/Render/Fly + managed
   Postgres/Redis in production (no more Azure student credits).
@@ -43,15 +45,14 @@ portfolio feature. Optimize for correctness and clarity over cleverness.
   (`ConfigModule`, `PrismaModule`, `RedisModule`, `AuthModule`) are `@Global()`.
 - `apps/worker` — two independent pipelines, kept fully separate so one never
   blocks the other:
-  - **price ingestion**: not a polling cron. A daily auth job (TOTP-automated
-    login against Upstox) writes a fresh access token to Redis each morning.
-    A long-lived ingestion process reads that token, opens a persistent
-    WebSocket connection to the Upstox market-data feed (market hours only),
-    and subscribes to a curated instrument list. Each tick updates the Redis
-    cache and publishes to Redis pub/sub immediately (latency-sensitive path);
-    ticks are also buffered and flushed to Postgres `price_snapshots` in small
-    batches every few seconds (throughput-sensitive path, deliberately not
-    synchronous with the cache/pub-sub path).
+  - **price ingestion**: not a polling cron. A long-lived process reads the
+    Analytics Token from the environment, requests a one-use authorized V3
+    WebSocket URL on each connect/reconnect, and subscribes to all instrument
+    keys in the shared top-100 catalog in LTPC mode during market hours. Each
+    tick maps the instrument key to its trading symbol, updates Redis, and
+    publishes to Redis pub/sub immediately (latency-sensitive path); the latest
+    buffered tick per symbol is flushed to Postgres every few seconds
+    (throughput-sensitive path).
   - **order execution**: a BullMQ queue consumes jobs carrying `userId`. The
     open-source worker currently runs at global concurrency 1 (BullMQ
     per-group concurrency is a Pro feature), so two same-user orders never
@@ -91,9 +92,11 @@ including zero-holding, weighted-average-cost, and fully-sold-position tests.
 queue-global sequential BullMQ processing, pending-order reconciliation,
 transactional row locking, exact aggregate cost basis, idempotency,
 retryable post-commit events, a DLQ, DB financial constraints, and repeated
-real-Postgres contention tests are in place. The Upstox account/curated symbol
-list is still a placeholder. Modules from Phase 6 onward (`realtime/`, `ai/`,
-and worker `ingestion/`) do not exist yet.
+real-Postgres contention tests are in place. The Upstox Analytics Token is
+configured locally and `nse_top_100.json` contains 100 unique validated NSE
+equities, but Phase 6 ingestion and catalog endpoints are not implemented.
+Modules from Phase 6 onward (`realtime/`, `ai/`, and worker `ingestion/`) do
+not exist yet.
 
 **Full phase-by-phase status, with checkboxes, lives in `docs/TASKS.md` — that
 file, not this summary, is the source of truth for what to build next.**
@@ -152,6 +155,10 @@ those before creating new files so new code lands in the right module.
   `libs/common` for the existing type if one exists.
 - For anything in `apps/worker/src/execution`, prioritize correctness and
   explicit tests over speed of implementation.
+- Whenever project scope, architecture, external credentials, data universe,
+  or phase plan changes, update the relevant summary/status in this canonical
+  `AGENTS.md` and the detailed architecture/task/decision docs in the same
+  change so future agents do not follow stale guidance.
 - After finishing a task, update `docs/TASKS.md` and, if you made a
   non-obvious design choice, add a short entry to `docs/DECISIONS.md`.
 - If a task is ambiguous, make a reasonable assumption, state it, and proceed

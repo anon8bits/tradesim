@@ -13,11 +13,10 @@ of done" — don't start the next phase until it's met.
   `.github/copilot-instructions.md` all in repo
 - [x] `docker-compose.yml` written (Postgres, Redis, Adminer)
 - [x] **You**: run `docker compose up -d` and confirm Postgres/Redis are up
-- [ ] **You**: open a free Upstox demat account (KYC via PAN + Aadhaar, zero
-  balance is fine), register as a developer, get an API key + secret
-- [ ] **You**: download Upstox's instrument master file, pick ~20-30 curated
-  instrument keys (Nifty 50 names + 1-2 indices), replace the placeholder
-  `CURATED_SYMBOLS` in `libs/common/src/index.ts`
+- [x] **You**: open an Upstox account and generate the one-year read-only
+  Analytics Token; store it locally as `UPSTOX_ANALYTICS_TOKEN`
+- [x] **You**: create root `nse_top_100.json` with the chosen website universe
+  (validated: exactly 100 NSE_EQ equities, unique instrument keys and symbols)
 
 ## Phase 1 — Data foundation
 - [x] Monorepo scaffold: `apps/api`, `apps/worker`, `libs/db`, `libs/common`
@@ -132,29 +131,37 @@ of done" — don't start the next phase until it's met.
   rejection path above is covered.
 
 ## Phase 6 — Real ingestion (Upstox)
-- [ ] `apps/worker/src/ingestion/daily-auth-job.ts` — TOTP-automated Upstox
-  login, writes the access token to Redis (short TTL matching Upstox's daily
-  expiry, ~3:30 AM IST)
+- [ ] Relocate root `nse_top_100.json` to
+  `libs/common/src/data/nse-top-100.json`; add a strict shared loader/schema,
+  expose typed instrument-key ↔ trading-symbol maps, and fail startup on
+  invalid/duplicate entries
+- [ ] `apps/api`: add paginated, case-insensitive local search over the 100
+  instruments (`GET /stocks?query=&page=&limit=`); never call Upstox from a
+  website search request
+- [ ] Validate `UPSTOX_ANALYTICS_TOKEN` at worker startup; no TOTP/daily-auth
+  job or API key/secret flow
 - [ ] `apps/worker/src/ingestion/upstox-client.ts` — calls the market-data
-  `authorize` endpoint, opens the WebSocket, subscribes to `CURATED_SYMBOLS`
-  instrument keys
+  V3 authorize endpoint, opens its one-use WSS URL, subscribes to all 100
+  instrument keys in LTPC mode
 - [ ] `apps/worker/src/ingestion/tick-decoder.ts` — protobuf decoding of the
   v3 feed format
 - [ ] `apps/worker/src/ingestion/tick-handler.ts` — per tick: update the
   Redis cache key and publish to pub/sub synchronously (latency-sensitive
-  path); push into an in-memory buffer
+  path); retain only the latest buffered tick per symbol
 - [ ] `apps/worker/src/ingestion/snapshot-flusher.ts` — flushes the buffer to
   `PriceSnapshot` via a batched insert every few seconds (throughput-sensitive
   path, deliberately decoupled from the cache/pub-sub path)
 - [ ] Reconnect-with-exponential-backoff wrapper around the WS client
-- [ ] Market-hours guard (Mon-Fri, 9:15-3:30 IST, skip holidays) shared by
-  both the daily auth job and the ingestion connection
+- [ ] Market-hours guard (Mon-Fri, 9:15-3:30 IST, skip holidays) for the
+  ingestion connection
 - [ ] `apps/worker/src/ingestion/upstox-rest-fallback.ts` — temporary REST
-  polling of the LTP endpoint if WS reconnect fails repeatedly, plus an alert
+  fallback using one batched LTP request for all 100 keys with conservative
+  rate limiting, plus an alert
 - [ ] Tests: mock a WebSocket server to test reconnect/backoff and tick
   handling — never depend on a live Upstox connection in CI
-- **Done when**: with the market open, `MarketModule` endpoints reflect real
-  live prices, and reconnect logic has been proven against a simulated drop.
+- **Done when**: local search paginates exactly the 100 configured equities;
+  with the market open, `MarketModule` reflects their real prices; reconnect
+  logic is proven against a simulated drop.
 
 ## Phase 7 — Real-time delivery + CI/observability
 - [ ] `apps/api/src/realtime/realtime.module.ts`

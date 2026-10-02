@@ -17,29 +17,35 @@ flowchart TB
 
 ```mermaid
 flowchart TB
-  auth[Daily auth job<br/>TOTP-automated login, ~8 AM IST] --> redis[(Redis<br/>token, cache, pub/sub)]
-  redis --> w[Ingestion worker<br/>persistent WS, market-hours gated]
+  token[Upstox Analytics Token<br/>environment secret, 1-year validity] --> w[Ingestion worker<br/>persistent V3 WS, market-hours gated]
+  catalog[Shared top-100 JSON catalog<br/>100 NSE equities] --> w
+  w --> authorize[Upstox V3 authorize endpoint<br/>one-use WSS URL]
   feed[Upstox WebSocket market feed] --> w
-  w --> redis
+  w --> redis[(Redis<br/>price cache + pub/sub)]
   w --> pg[(PostgreSQL<br/>batched snapshot writes)]
 ```
 
 Notes:
 
-- No polling. The worker holds one persistent WebSocket connection and
-  subscribes to a curated list of ~20-30 instrument keys (Nifty 50 names +
-  a couple of indices), not the full NSE/BSE universe.
-- Upstox access tokens expire daily (~3:30 AM IST) with no long-lived refresh
-  token on the free tier, so a separate daily auth job automates login via
-  TOTP and writes the token to Redis before market open.
+- No polling on the normal path. The worker holds one persistent Market Data
+  Feed V3 connection and subscribes in LTPC mode to the 100 unique NSE equity
+  instrument keys from `libs/common/src/data/nse-top-100.json` (relocated from
+  the validated root input file during Phase 6).
+- The read-only Upstox Analytics Token is supplied as
+  `UPSTOX_ANALYTICS_TOKEN` and is valid for one year. No API key/secret, TOTP,
+  daily login automation, or token-in-Redis job is part of this design.
+- Each connection or reconnect calls the V3 authorize endpoint to obtain a
+  fresh single-use `authorized_redirect_uri`; that WSS URL is never persisted.
+- The API loads the same 100-entry catalog for local search and pagination.
+  User searches never call Upstox, so they consume no provider rate limit.
 - **Latency-sensitive vs. throughput-sensitive paths are intentionally split**:
   every tick updates the Redis cache and publishes to pub/sub synchronously
   (this is what makes the frontend feel real-time), but Postgres writes are
-  buffered and flushed in small batches every few seconds — writing every
-  single tick to Postgres individually would be unnecessary DB load.
+  deduplicated to the latest tick per symbol and flushed in small batches every
+  few seconds — writing every tick individually would be unnecessary DB load.
 - If the WebSocket can't reconnect after several attempts, fall back
-  temporarily to REST polling of the LTP endpoint and raise an alert, rather
-  than going silent on prices.
+  temporarily to one batched LTP request covering the 100 keys, with
+  rate-limited polling and an alert, rather than going silent on prices.
 - This use of the Upstox API is scoped to personal/portfolio-project use
   under one developer account, not a licensed multi-tenant redistribution
   product — keep it framed that way in anything public-facing about this
@@ -56,9 +62,8 @@ the market endpoint down.
 Prices remain `BigInt` paise inside the service. Redis JSON and HTTP response
 DTOs encode `priceCents` as a base-10 string because JSON cannot represent
 `BigInt` and converting to a JavaScript number could lose precision. The
-placeholder `CURATED_INDEX_SYMBOLS` list is intentionally empty until the
-real Upstox instrument selection is completed, so `GET /indices` currently
-returns an empty list.
+top-100 catalog contains equities only, so `GET /indices` remains empty until
+index instruments are deliberately added as a separate catalog.
 
 ## Portfolio read path
 

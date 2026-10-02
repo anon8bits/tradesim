@@ -141,5 +141,29 @@ ambiguously (races a worker that received the job); a full generic outbox
 table/dispatcher (more infrastructure than this single event flow needs);
 storing only rounded average cost (loses real basis over repeated trades).
 
+## 2026-10-02 — Analytics Token and fixed top-100 NSE universe
+
+**Why**: Upstox now provides a one-year, read-only Analytics Token that
+supports Market Data Feed V3, making the earlier daily OAuth/TOTP automation
+unnecessary and less secure. Phase 6 reads `UPSTOX_ANALYTICS_TOKEN` from the
+environment and requests a fresh one-use authorized WSS URL on every
+connection.
+
+The website universe comes from the supplied root `nse_top_100.json`, validated
+at 100 unique NSE equity keys/symbols, then becomes the versioned shared asset
+`libs/common/src/data/nse-top-100.json` during implementation. One hundred
+metadata records are safe to load in both API and worker memory: the API
+performs local search/pagination, and the worker subscribes to all keys in LTPC
+mode. This avoids provider calls per user search while remaining far below
+Upstox's documented feed limit. Postgres buffering retains only the latest tick
+per symbol between flushes.
+
+**Alternatives considered**: daily TOTP login (superseded by the Analytics
+Token); querying Upstox Instrument Search per website request (shares one
+provider rate limit across all users); importing the complete exchange
+universe into PostgreSQL (unnecessary complexity for the chosen fixed 100);
+manually maintaining a 20–30-symbol TypeScript constant (too small and less
+auditable than the validated JSON catalog).
+
 <!-- Add new entries above this line, newest first. -->
 

@@ -8,3 +8,4 @@ build/
 .DS_Store
 coverage/
 libs/db/prisma/migrations/.temp/
+nse_top_100.json
