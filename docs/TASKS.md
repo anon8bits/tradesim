@@ -131,37 +131,93 @@ of done" — don't start the next phase until it's met.
   rejection path above is covered.
 
 ## Phase 6 — Real ingestion (Upstox)
-- [ ] Relocate root `nse_top_100.json` to
+- [x] Relocate root `nse_top_100.json` to
   `libs/common/src/data/nse-top-100.json`; add a strict shared loader/schema,
   expose typed instrument-key ↔ trading-symbol maps, and fail startup on
   invalid/duplicate entries
-- [ ] `apps/api`: add paginated, case-insensitive local search over the 100
+- [x] `apps/api`: add paginated, case-insensitive local search over the 100
   instruments (`GET /stocks?query=&page=&limit=`); never call Upstox from a
   website search request
-- [ ] Validate `UPSTOX_ANALYTICS_TOKEN` at worker startup; no TOTP/daily-auth
+- [x] Validate `UPSTOX_ANALYTICS_TOKEN` at worker startup; no TOTP/daily-auth
   job or API key/secret flow
-- [ ] `apps/worker/src/ingestion/upstox-client.ts` — calls the market-data
+- [x] `apps/worker/src/ingestion/upstox-client.ts` — calls the market-data
   V3 authorize endpoint, opens its one-use WSS URL, subscribes to all 100
   instrument keys in LTPC mode
-- [ ] `apps/worker/src/ingestion/tick-decoder.ts` — protobuf decoding of the
+- [x] `apps/worker/src/ingestion/tick-decoder.ts` — protobuf decoding of the
   v3 feed format
-- [ ] `apps/worker/src/ingestion/tick-handler.ts` — per tick: update the
+- [x] `apps/worker/src/ingestion/tick-handler.ts` — per tick: update the
   Redis cache key and publish to pub/sub synchronously (latency-sensitive
   path); retain only the latest buffered tick per symbol
-- [ ] `apps/worker/src/ingestion/snapshot-flusher.ts` — flushes the buffer to
+- [x] `apps/worker/src/ingestion/snapshot-flusher.ts` — flushes the buffer to
   `PriceSnapshot` via a batched insert every few seconds (throughput-sensitive
   path, deliberately decoupled from the cache/pub-sub path)
-- [ ] Reconnect-with-exponential-backoff wrapper around the WS client
-- [ ] Market-hours guard (Mon-Fri, 9:15-3:30 IST, skip holidays) for the
+- [x] Reconnect-with-exponential-backoff wrapper around the WS client
+- [x] Market-hours guard using Upstox's date-specific NSE session (covers
+  weekdays, holidays, and special sessions) for the
   ingestion connection
-- [ ] `apps/worker/src/ingestion/upstox-rest-fallback.ts` — temporary REST
+- [x] `apps/worker/src/ingestion/upstox-rest-fallback.ts` — temporary REST
   fallback using one batched LTP request for all 100 keys with conservative
   rate limiting, plus an alert
-- [ ] Tests: mock a WebSocket server to test reconnect/backoff and tick
+- [x] Tests: mock a WebSocket server to test reconnect/backoff and tick
   handling — never depend on a live Upstox connection in CI
+- [x] Closed-market LTP snapshot: one batched REST LTP load per closed period
+  (startup + after each session, retried on failure) so closing prices are
+  served outside market hours; verified live — 100 prices in Redis and
+  `price_snapshots` with the market closed
+- [ ] Live completion gate (run during an open NSE session): start API +
+  worker and verify `MarketModule` reflects real streamed prices for configured
+  symbols. Token authorization, market timings, and one 100-key LTP batch have
+  already been verified successfully against Upstox.
 - **Done when**: local search paginates exactly the 100 configured equities;
   with the market open, `MarketModule` reflects their real prices; reconnect
   logic is proven against a simulated drop.
+
+## Frontend (parallel track — `apps/web`, started at the user's request)
+
+Runs alongside the backend phases; it consumes only endpoints that already
+exist and must not change backend code on its own.
+
+- [x] Scaffold `apps/web` (Vite + React + TypeScript) in the pnpm workspace,
+  with the prototype's theme, fonts, and light/dark modes
+- [x] Auth0 SPA login (`@auth0/auth0-react`) plus a `mock` mode needing no
+  Auth0/API/worker; dev proxy `/api` → `localhost:3000`
+- [x] Landing page, market list (paginated local catalog search + polled
+  prices), topbar search, stock detail with session chart and order ticket,
+  portfolio (BigInt totals, P&L %, allocation), orders, profile/settings
+- [x] Vitest suite: money formatting/parsing, HTTP client error mapping, mock
+  settlement math, order-ticket validation/submission, portfolio rendering
+- [x] **You**: create an Auth0 *Single Page Application*, set Callback
+  `http://localhost:5173/app`, Logout and Web Origin `http://localhost:5173`,
+  enable Refresh Token Rotation (and "Allow Offline Access" on the API), then
+  fill `apps/web/.env.local` from `apps/web/.env.example` — done; the SPA and
+  the custom API (identifier `https://tradesim-api`, RS256) live in the same
+  tenant, and `AUTH0_AUDIENCE` / `VITE_AUTH0_AUDIENCE` both use it. Never use
+  the Auth0 Management API (`…/api/v2/`) or another tenant's API as audience
+  (Auth0 answers "Service not found")
+- [x] Live login verified: Google sign-in works and the market shows real
+  closing LTPs from the worker
+- [x] Link the developer's Auth0 user to a trading profile: seeded
+  `trader1@example.com` now has `auth0Id = google-oauth2|…` (re-running the
+  seed does not overwrite it — the upsert's `update` is empty)
+- [ ] **You**: verify the portfolio page and a buy/sell round-trip that settles
+  in live mode (orders fill only while prices are available; with the market
+  closed they fill at the closing LTP)
+- [ ] Backend follow-ups the UI currently works around (schedule into the
+  backend phases; not done from the frontend track):
+  - `GET /orders` (history + final status/fill price) — Orders page uses a
+    local per-browser log instead
+  - user provisioning on first login (e.g. `POST /me` creating a ₹1,00,000
+    profile keyed by the JWT `sub`) — new Auth0 users currently see "No
+    trading account linked" and need a manual `users."auth0Id"` update;
+    each Auth0 connection (Google vs. password) yields a different `sub`
+  - price history / previous close for real day change and charts — the UI
+    shows session-observed change only
+  - CORS (or a same-origin reverse proxy) for production deploys
+- [ ] Swap price/portfolio polling for the Phase 7 WebSocket gateway once it
+  exists
+- **Done when**: a real Auth0 user can sign in, see live prices and their
+  portfolio, and place a buy and a sell that settle, against the running API
+  and worker.
 
 ## Phase 7 — Real-time delivery + CI/observability
 - [ ] `apps/api/src/realtime/realtime.module.ts`

@@ -36,6 +36,18 @@ Notes:
   daily login automation, or token-in-Redis job is part of this design.
 - Each connection or reconnect calls the V3 authorize endpoint to obtain a
   fresh single-use `authorized_redirect_uri`; that WSS URL is never persisted.
+- Before connecting, the worker queries Upstox's date-specific market-timings
+  endpoint and uses the returned NSE session. A missing NSE session means the
+  market is closed, so weekends, trading holidays, and special sessions do not
+  depend on a hardcoded calendar. If the calendar request fails, ingestion
+  stays disconnected and retries rather than guessing that the market is open.
+- Outside a session the WebSocket stays off, but the worker makes one batched
+  LTP REST request for the 100 keys per closed period (at startup and again
+  after each session ends; a failed attempt retries on the next closed-market
+  poll). Upstox returns the last traded (closing) price, which goes through
+  the normal tick path into Redis, pub/sub, and `PriceSnapshot`, so the site
+  shows closing prices overnight, on weekends, and on holidays. Its `ts` is
+  the fetch time; the LTP response carries no trade timestamp.
 - The API loads the same 100-entry catalog for local search and pagination.
   User searches never call Upstox, so they consume no provider rate limit.
 - **Latency-sensitive vs. throughput-sensitive paths are intentionally split**:
@@ -168,6 +180,11 @@ tradesim/
       src/
         execution/               # Phase 5 — order-execution BullMQ consumer
         ingestion/                # Phase 6 — Upstox WebSocket ingestion
+    web/                        # Frontend track — Vite + React SPA
+      src/
+        api/                     # wire types, HTTP client, mock API, queries
+        auth/                    # Auth0 / mock auth behind one context
+        components/, pages/, lib/, styles/
   libs/
     db/                          # Prisma schema + client, shared by both apps
     common/                      # Shared wire types (PriceTick) and money helpers
@@ -177,6 +194,30 @@ Folders not yet created (`auth/`, `market/`, `portfolio/`, `orders/`,
 `realtime/`, `ai/`, `execution/`, `ingestion/`) are exactly the module names
 each phase in `docs/TASKS.md` creates — the layout above is the target shape
 of the whole repo, not just what exists today.
+
+## Frontend (`apps/web`)
+
+A Vite + React SPA that talks only to the existing HTTP API. Auth0's SPA SDK
+obtains an access token for `AUTH0_AUDIENCE` and every request sends it as a
+bearer token. In development Vite proxies `/api/*` to the API (which does not
+enable CORS); a production deployment needs either the same reverse-proxy
+arrangement or CORS added to the API.
+
+- Money: API decimal-string paise are parsed straight to `BigInt`; estimates,
+  totals, and P&L percentages are BigInt arithmetic, formatted with
+  `paiseToDisplayRupees` plus Indian digit grouping. Chart pixel coordinates
+  are the only place a price becomes a JS number.
+- Prices: React Query polls `GET /stocks/:symbol` every 5 s and the portfolio
+  every 10 s until the Phase 7 WebSocket gateway exists. Observed prices are
+  kept in an in-memory per-symbol history that drives the session chart and
+  session high/low (there is no price-history endpoint).
+- Orders: the ticket mirrors `CreateOrderDto` validation, posts, and treats
+  the 202 as "queued". Without an order-history endpoint, submitted orders are
+  remembered in `localStorage` per Auth0 subject, and the portfolio is
+  re-fetched a few times as the worker settles.
+- Mock mode (`VITE_API_MODE=mock`) swaps in an in-browser implementation of
+  the same `TradeSimApi` interface plus a fake signed-in user; it settles
+  orders with the worker's BigInt rules so the UI can be exercised end to end.
 
 ## Module structure (`apps/api`)
 

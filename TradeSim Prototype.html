@@ -1,0 +1,687 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>TradeSim Prototype</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,440;0,9..144,560;0,9..144,650;1,9..144,500&family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+  /* Layout: a dark "trading ledger" shell — fixed icon+label sidebar, sticky
+     topbar, scrollable content panel — with a separate full-bleed marketing
+     landing page reachable by a small corner toggle. */
+  :root{
+    --bg:#0B1210; --surface:#121A17; --surface-raised:#1B2622; --border:#28352F;
+    --fg:#ECEAE0; --fg-muted:#93A098; --fg-faint:#5E6B64;
+    --accent:#D8BD7E; --on-accent:#17130B;
+    --gain:#55AE82; --gain-bg:rgba(85,174,130,.14);
+    --loss:#CD7363; --loss-bg:rgba(205,115,99,.14);
+    --font-display:'Fraunces',Georgia,serif;
+    --font-body:'Public Sans',-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif;
+    --font-mono:'IBM Plex Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
+    color-scheme:dark;
+  }
+  @media (prefers-color-scheme:light){
+    :root:not([data-theme="dark"]){
+      --bg:#F7F5EE; --surface:#FFFFFF; --surface-raised:#EFEBDF; --border:#DCD6C4;
+      --fg:#17201B; --fg-muted:#59655D; --fg-faint:#8A9690;
+      --accent:#8A6B2E; --on-accent:#FFFFFF;
+      --gain:#227A50; --gain-bg:rgba(34,122,80,.1);
+      --loss:#A8402E; --loss-bg:rgba(168,64,46,.1);
+      color-scheme:light;
+    }
+  }
+  :root[data-theme="light"]{
+    --bg:#F7F5EE; --surface:#FFFFFF; --surface-raised:#EFEBDF; --border:#DCD6C4;
+    --fg:#17201B; --fg-muted:#59655D; --fg-faint:#8A9690;
+    --accent:#8A6B2E; --on-accent:#FFFFFF;
+    --gain:#227A50; --gain-bg:rgba(34,122,80,.1);
+    --loss:#A8402E; --loss-bg:rgba(168,64,46,.1);
+    color-scheme:light;
+  }
+
+  *{box-sizing:border-box;}
+  html,body{height:100%;}
+  body{
+    margin:0; background:var(--bg); color:var(--fg);
+    font-family:var(--font-body); font-size:16px; line-height:1.5;
+    -webkit-font-smoothing:antialiased;
+  }
+  h1,h2,h3{font-family:var(--font-display); font-weight:560; margin:0; text-wrap:balance;}
+  p{margin:0;}
+  a{color:inherit;}
+  button{font-family:inherit; cursor:pointer;}
+  .num{font-family:var(--font-mono); font-variant-numeric:tabular-nums;}
+  :focus-visible{outline:2px solid var(--accent); outline-offset:2px; border-radius:4px;}
+  ::selection{background:var(--accent); color:var(--on-accent);}
+  @media (prefers-reduced-motion:reduce){ *{animation-duration:.001ms !important; animation-iteration-count:1 !important; transition-duration:.001ms !important;} }
+
+  /* ---------- prototype corner toggle ---------- */
+  .proto-toggle{
+    position:fixed; top:calc(env(safe-area-inset-top,0px) + 12px); right:12px; z-index:200;
+    display:flex; gap:2px; padding:3px; background:var(--surface-raised);
+    border:1px solid var(--border); border-radius:999px;
+    box-shadow:0 6px 20px rgba(0,0,0,.25);
+  }
+  .proto-toggle button{
+    appearance:none; border:none; background:transparent; color:var(--fg-muted);
+    font-size:.78rem; font-weight:600; padding:7px 14px; border-radius:999px;
+    letter-spacing:.01em;
+  }
+  .proto-toggle button[aria-pressed="true"]{ background:var(--accent); color:var(--on-accent); }
+
+  [hidden]{display:none !important;}
+
+  /* ================= LANDING ================= */
+  #landing{ min-height:100%; }
+  .l-nav{
+    position:sticky; top:env(safe-area-inset-top,0px); z-index:50;
+    display:flex; align-items:center; justify-content:space-between; gap:16px;
+    padding:18px clamp(16px,5vw,56px); background:color-mix(in srgb, var(--bg) 88%, transparent);
+    backdrop-filter:blur(10px); border-bottom:1px solid var(--border);
+  }
+  .wordmark{ font-family:var(--font-display); font-weight:650; font-size:1.3rem; letter-spacing:-.01em; }
+  .wordmark em{ font-style:normal; color:var(--accent); }
+  .l-links{ display:flex; align-items:center; gap:28px; }
+  .l-links a{ text-decoration:none; color:var(--fg-muted); font-size:.92rem; }
+  .l-links a:hover{ color:var(--fg); }
+  .btn{
+    appearance:none; border:1px solid transparent; border-radius:10px; font-weight:600;
+    font-size:.92rem; padding:11px 20px; display:inline-flex; align-items:center; gap:8px;
+    transition:transform .12s ease, background .15s ease;
+  }
+  .btn:active{ transform:translateY(1px); }
+  .btn-primary{ background:var(--accent); color:var(--on-accent); }
+  .btn-primary:hover{ background:color-mix(in srgb, var(--accent) 88%, white 12%); }
+  .btn-ghost{ background:transparent; color:var(--fg); border-color:var(--border); }
+  .btn-ghost:hover{ background:var(--surface-raised); }
+
+  .hero{
+    padding:clamp(48px,8vw,96px) clamp(16px,5vw,56px) clamp(32px,6vw,64px);
+    display:grid; gap:28px; max-width:760px;
+  }
+  .hero h1{ font-size:clamp(2.4rem,4.4vw + 1rem,4rem); line-height:1.06; letter-spacing:-.01em; }
+  .hero h1 .accent-word{ color:var(--accent); font-style:italic; }
+  .hero p{ color:var(--fg-muted); font-size:1.15rem; max-width:52ch; line-height:1.55; }
+  .hero-ctas{ display:flex; flex-wrap:wrap; gap:12px; margin-top:6px; }
+
+  .ticker-wrap{ overflow:hidden; border-top:1px solid var(--border); border-bottom:1px solid var(--border); background:var(--surface); }
+  .ticker-track{ display:flex; width:max-content; animation:scroll-left 32s linear infinite; }
+  @keyframes scroll-left{ from{transform:translateX(0);} to{transform:translateX(-50%);} }
+  .tick{ display:flex; align-items:baseline; gap:10px; padding:14px 26px; border-right:1px solid var(--border); white-space:nowrap; }
+  .tick .sym{ font-weight:600; font-size:.88rem; letter-spacing:.01em; }
+  .tick .px{ font-family:var(--font-mono); font-size:.88rem; color:var(--fg-muted); }
+  .tick .chg{ font-family:var(--font-mono); font-size:.8rem; }
+  .up{ color:var(--gain); } .down{ color:var(--loss); }
+
+  .section{ padding:clamp(48px,7vw,84px) clamp(16px,5vw,56px); }
+  .section-head{ max-width:640px; margin-bottom:36px; display:grid; gap:10px; }
+  .section-head h2{ font-size:clamp(1.6rem,2vw + 1rem,2.2rem); }
+  .section-head p{ color:var(--fg-muted); font-size:1.02rem; }
+
+  .feature-grid{ display:grid; grid-template-columns:repeat(3,1fr); gap:1px; background:var(--border); border:1px solid var(--border); border-radius:14px; overflow:hidden; }
+  .feature{ background:var(--surface); padding:28px 24px; display:grid; gap:12px; align-content:start; }
+  .feature .ico{ width:34px; height:34px; color:var(--accent); }
+  .feature h3{ font-size:1.05rem; font-weight:600; font-family:var(--font-body); }
+  .feature p{ color:var(--fg-muted); font-size:.93rem; line-height:1.55; }
+
+  .steps{ display:grid; grid-template-columns:repeat(3,1fr); gap:24px; }
+  .step{ display:grid; gap:10px; padding-top:18px; border-top:1px solid var(--border); }
+  .step .n{ font-family:var(--font-mono); color:var(--accent); font-size:.85rem; }
+  .step h3{ font-size:1.05rem; font-weight:600; font-family:var(--font-body); }
+  .step p{ color:var(--fg-muted); font-size:.92rem; line-height:1.55; }
+
+  .l-footer{ padding:28px clamp(16px,5vw,56px) calc(28px + env(safe-area-inset-bottom,0px)); border-top:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; color:var(--fg-faint); font-size:.85rem; }
+
+  /* ================= APP SHELL ================= */
+  #app{ display:grid; grid-template-columns:208px 1fr; min-height:100%; }
+  .sidebar{
+    background:var(--surface); border-right:1px solid var(--border);
+    display:flex; flex-direction:column; padding:18px 12px; gap:4px;
+  }
+  .side-brand{ font-family:var(--font-display); font-weight:650; font-size:1.1rem; padding:6px 10px 18px; }
+  .side-brand em{ font-style:normal; color:var(--accent); }
+  .side-link{
+    display:flex; align-items:center; gap:11px; padding:10px 12px; border-radius:9px;
+    color:var(--fg-muted); font-size:.9rem; font-weight:500; background:transparent; border:none; width:100%; text-align:left;
+  }
+  .side-link svg{ width:18px; height:18px; flex:none; }
+  .side-link:hover{ background:var(--surface-raised); color:var(--fg); }
+  .side-link[aria-current="page"]{ background:var(--surface-raised); color:var(--fg); }
+  .side-link[aria-current="page"] svg{ color:var(--accent); }
+  .side-spacer{ flex:1; }
+  .side-exit{ font-size:.8rem; color:var(--fg-faint); padding:10px 12px; }
+
+  .main{ min-width:0; display:flex; flex-direction:column; max-height:100%; overflow:hidden; }
+  .topbar{
+    display:flex; align-items:center; gap:16px; padding:14px 24px;
+    border-bottom:1px solid var(--border); background:var(--surface);
+  }
+  .search{
+    flex:1; max-width:380px; display:flex; align-items:center; gap:8px;
+    background:var(--surface-raised); border:1px solid var(--border); border-radius:9px;
+    padding:9px 12px; color:var(--fg-faint); font-size:.88rem;
+  }
+  .search svg{ width:15px; height:15px; flex:none; }
+  .topbar-spacer{ flex:1; }
+  .balance-pill{
+    display:flex; align-items:center; gap:8px; background:var(--surface-raised);
+    border:1px solid var(--border); border-radius:999px; padding:7px 14px;
+  }
+  .balance-pill .label{ font-size:.72rem; color:var(--fg-faint); }
+  .balance-pill .amt{ font-family:var(--font-mono); font-size:.88rem; font-weight:600; }
+  .avatar{
+    width:34px; height:34px; border-radius:999px; background:var(--accent); color:var(--on-accent);
+    display:flex; align-items:center; justify-content:center; font-weight:700; font-size:.82rem; flex:none;
+  }
+
+  .content{ padding:24px; overflow-y:auto; display:grid; gap:24px; align-content:start; }
+  .page-head{ display:flex; align-items:baseline; justify-content:space-between; gap:16px; flex-wrap:wrap; }
+  .page-head h2{ font-size:1.5rem; }
+  .page-head .sub{ color:var(--fg-muted); font-size:.9rem; }
+
+  .tile-row{ display:grid; grid-template-columns:repeat(4,1fr); gap:1px; background:var(--border); border:1px solid var(--border); border-radius:12px; overflow:hidden; }
+  .tile{ background:var(--surface); padding:18px 20px; display:grid; gap:6px; }
+  .tile .label{ font-size:.78rem; color:var(--fg-faint); }
+  .tile .value{ font-family:var(--font-mono); font-size:1.35rem; font-weight:600; }
+  .tile .delta{ font-family:var(--font-mono); font-size:.8rem; }
+
+  .panel{ background:var(--surface); border:1px solid var(--border); border-radius:12px; }
+  .panel-head{ display:flex; align-items:center; justify-content:space-between; padding:16px 20px; border-bottom:1px solid var(--border); }
+  .panel-head h3{ font-size:1rem; font-weight:600; font-family:var(--font-body); }
+
+  .table-scroll{ overflow-x:auto; }
+  table{ width:100%; border-collapse:collapse; min-width:560px; }
+  th,td{ padding:12px 20px; text-align:left; font-size:.88rem; white-space:nowrap; }
+  th{ color:var(--fg-faint); font-weight:500; font-size:.76rem; text-transform:uppercase; letter-spacing:.04em; border-bottom:1px solid var(--border); }
+  tbody tr{ border-bottom:1px solid var(--border); cursor:pointer; transition:background .12s ease; }
+  tbody tr:last-child{ border-bottom:none; }
+  tbody tr:hover{ background:var(--surface-raised); }
+  td.num, th.num{ text-align:right; font-family:var(--font-mono); }
+  .sym-cell{ display:flex; flex-direction:column; gap:2px; }
+  .sym-cell .name{ color:var(--fg-faint); font-size:.76rem; }
+  .chip{ display:inline-flex; align-items:center; padding:3px 9px; border-radius:999px; font-size:.74rem; font-weight:600; font-family:var(--font-mono); }
+  .chip.up{ background:var(--gain-bg); color:var(--gain); }
+  .chip.down{ background:var(--loss-bg); color:var(--loss); }
+  .chip.buy{ background:var(--gain-bg); color:var(--gain); }
+  .chip.sell{ background:var(--loss-bg); color:var(--loss); }
+  .chip.pending{ background:var(--surface-raised); color:var(--fg-muted); }
+
+  /* stock detail */
+  .stock-head{ display:flex; align-items:flex-start; justify-content:space-between; gap:20px; flex-wrap:wrap; }
+  .stock-id{ display:flex; align-items:center; gap:12px; }
+  .stock-id .logo{ width:44px; height:44px; border-radius:10px; background:var(--surface-raised); border:1px solid var(--border); display:flex; align-items:center; justify-content:center; font-family:var(--font-mono); font-weight:600; font-size:.8rem; }
+  .stock-id h2{ font-size:1.3rem; }
+  .stock-id .meta{ color:var(--fg-faint); font-size:.82rem; display:flex; gap:8px; align-items:center; }
+  .exch-badge{ border:1px solid var(--border); border-radius:5px; padding:1px 6px; font-size:.7rem; font-family:var(--font-mono); }
+  .price-block{ text-align:right; }
+  .price-block .price{ font-family:var(--font-mono); font-size:2.1rem; font-weight:600; line-height:1; }
+  .price-block .delta{ font-family:var(--font-mono); font-size:.92rem; margin-top:4px; }
+
+  .stock-grid{ display:grid; grid-template-columns:1.6fr 1fr; gap:20px; align-items:start; }
+  .range-tabs{ display:flex; gap:4px; }
+  .range-tabs button{ appearance:none; border:1px solid var(--border); background:transparent; color:var(--fg-muted); font-size:.76rem; font-weight:600; padding:5px 11px; border-radius:7px; }
+  .range-tabs button[aria-pressed="true"]{ background:var(--surface-raised); color:var(--fg); border-color:var(--accent); }
+  .chart-wrap{ padding:4px 8px 12px; }
+  .chart-wrap svg{ width:100%; height:auto; display:block; }
+
+  .stats-grid{ display:grid; grid-template-columns:1fr 1fr; }
+  .stat{ padding:13px 20px; border-bottom:1px solid var(--border); border-right:1px solid var(--border); display:grid; gap:3px; }
+  .stat:nth-child(even){ border-right:none; }
+  .stat .label{ font-size:.74rem; color:var(--fg-faint); }
+  .stat .val{ font-family:var(--font-mono); font-size:.92rem; }
+
+  .ticket{ padding:18px 20px; display:grid; gap:14px; }
+  .side-toggle{ display:flex; background:var(--surface-raised); border:1px solid var(--border); border-radius:9px; padding:3px; }
+  .side-toggle button{ flex:1; appearance:none; border:none; background:transparent; padding:9px; border-radius:7px; font-weight:600; font-size:.86rem; color:var(--fg-muted); }
+  .side-toggle button.buy-on{ background:var(--gain); color:#0E140F; }
+  .field{ display:grid; gap:6px; }
+  .field label{ font-size:.78rem; color:var(--fg-faint); }
+  .field input{
+    background:var(--surface-raised); border:1px solid var(--border); border-radius:8px;
+    padding:10px 12px; color:var(--fg); font-family:var(--font-mono); font-size:.95rem; width:100%;
+  }
+  .ticket-row{ display:flex; justify-content:space-between; font-size:.85rem; color:var(--fg-muted); }
+  .ticket-row .num{ color:var(--fg); }
+  .ticket-note{ font-size:.76rem; color:var(--fg-faint); line-height:1.5; }
+  .btn-block{ width:100%; justify-content:center; }
+
+  /* profile */
+  .profile-head{ display:flex; align-items:center; gap:16px; }
+  .profile-head .avatar{ width:58px; height:58px; font-size:1.2rem; }
+  .profile-head h2{ font-size:1.3rem; }
+  .profile-head .email{ color:var(--fg-muted); font-size:.9rem; }
+  .kv-list{ display:grid; }
+  .kv{ display:flex; justify-content:space-between; padding:14px 20px; border-bottom:1px solid var(--border); font-size:.9rem; }
+  .kv:last-child{ border-bottom:none; }
+  .kv .k{ color:var(--fg-muted); }
+  .kv .v{ font-family:var(--font-mono); }
+  .settings-list{ display:grid; }
+  .setting{ display:flex; align-items:center; justify-content:space-between; padding:14px 20px; border-bottom:1px solid var(--border); font-size:.92rem; }
+  .setting:last-child{ border-bottom:none; }
+  .setting .danger{ color:var(--loss); }
+  .chev{ width:16px; height:16px; color:var(--fg-faint); }
+
+  @media (max-width:860px){
+    .feature-grid, .steps{ grid-template-columns:1fr; }
+    .stock-grid{ grid-template-columns:1fr; }
+    .tile-row{ grid-template-columns:1fr 1fr; }
+  }
+  @media (max-width:720px){
+    #app{ grid-template-columns:1fr; }
+    .sidebar{ flex-direction:row; overflow-x:auto; border-right:none; border-bottom:1px solid var(--border); padding:10px 12px; }
+    .side-brand, .side-spacer, .side-exit{ display:none; }
+    .side-link{ flex:none; }
+    .l-links{ display:none; }
+    .tile-row{ grid-template-columns:1fr 1fr; }
+  }
+</style>
+
+<div class="proto-toggle" role="group" aria-label="Prototype view">
+  <button id="tgl-landing" aria-pressed="true" onclick="showView('landing')">Landing</button>
+  <button id="tgl-app" aria-pressed="false" onclick="showView('app')">App</button>
+</div>
+
+<!-- ================= LANDING ================= -->
+<section id="landing">
+  <nav class="l-nav">
+    <div class="wordmark">Trade<em>Sim</em></div>
+    <div class="l-links">
+      <a href="#">Markets</a>
+      <a href="#">How it works</a>
+      <a href="#">About</a>
+    </div>
+    <div style="display:flex;gap:10px;">
+      <button class="btn btn-ghost" onclick="showView('app')">Log in</button>
+      <button class="btn btn-primary" onclick="showView('app')">Start trading free</button>
+    </div>
+  </nav>
+
+  <div class="hero">
+    <h1>The market,<br><span class="accent-word">minus the risk.</span></h1>
+    <p>TradeSim gives you ₹1,00,000 in virtual capital and real NSE prices, so you can learn how trading actually feels before a single rupee is on the line.</p>
+    <div class="hero-ctas">
+      <button class="btn btn-primary" onclick="showView('app')">Start trading free</button>
+      <button class="btn btn-ghost" onclick="showView('app')">See live markets</button>
+    </div>
+  </div>
+
+  <div class="ticker-wrap" aria-hidden="true">
+    <div class="ticker-track" id="tickerTrack"></div>
+  </div>
+
+  <div class="section">
+    <div class="section-head">
+      <h2>Built like a real trading desk</h2>
+      <p>Not a spreadsheet with extra steps. TradeSim is built on the same ideas real brokerages use.</p>
+    </div>
+    <div class="feature-grid">
+      <div class="feature">
+        <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 17l5-5 4 3 7-8"/><path d="M15 7h4v4"/></svg>
+        <h3>Live NSE prices</h3>
+        <p>Streamed tick by tick from a real market-data feed, not refreshed on a timer.</p>
+      </div>
+      <div class="feature">
+        <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M4 10h16M10 4v16"/></svg>
+        <h3>Orders that fill correctly</h3>
+        <p>Every trade is checked and settled atomically, so your balance is always right, even under load.</p>
+      </div>
+      <div class="feature">
+        <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 19V9M12 19V5M20 19v-7"/></svg>
+        <h3>A portfolio you can trust</h3>
+        <p>Track cost basis, P&amp;L, and history the way a real brokerage statement would.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="section" style="padding-top:0;">
+    <div class="section-head">
+      <h2>Three steps to your first trade</h2>
+    </div>
+    <div class="steps">
+      <div class="step"><div class="n">01</div><h3>Create a free account</h3><p>Sign in with email in under a minute, no card required.</p></div>
+      <div class="step"><div class="n">02</div><h3>Get ₹1,00,000 in virtual cash</h3><p>Your starting balance lands instantly, ready to deploy.</p></div>
+      <div class="step"><div class="n">03</div><h3>Buy, sell, and learn</h3><p>Trade real NSE names and watch how your decisions play out.</p></div>
+    </div>
+  </div>
+
+  <footer class="l-footer">
+    <div class="wordmark" style="font-size:1rem;">Trade<em>Sim</em></div>
+    <div>Paper trading for people learning to read the market.</div>
+  </footer>
+</section>
+
+<!-- ================= APP ================= -->
+<div id="app" hidden>
+  <aside class="sidebar">
+    <div class="side-brand">Trade<em>Sim</em></div>
+
+    <button class="side-link" data-page="market" aria-current="page" onclick="showPage('market')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3" y="3" width="8" height="8" rx="1.5"/><rect x="13" y="3" width="8" height="8" rx="1.5"/><rect x="3" y="13" width="8" height="8" rx="1.5"/><rect x="13" y="13" width="8" height="8" rx="1.5"/></svg>
+      Market
+    </button>
+    <button class="side-link" data-page="stock" onclick="showPage('stock')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M3 15l5-6 4 4 9-10"/><circle cx="21" cy="3" r="1.4" fill="currentColor" stroke="none"/></svg>
+      RELIANCE
+    </button>
+    <button class="side-link" data-page="portfolio" onclick="showPage('portfolio')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+      Portfolio
+    </button>
+    <button class="side-link" data-page="transactions" onclick="showPage('transactions')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 7h13M13 3l4 4-4 4"/><path d="M20 17H7M11 21l-4-4 4-4"/></svg>
+      Transactions
+    </button>
+    <button class="side-link" data-page="profile" onclick="showPage('profile')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="8" r="3.4"/><path d="M4.5 20c1.6-3.6 4.6-5.4 7.5-5.4s5.9 1.8 7.5 5.4"/></svg>
+      Profile
+    </button>
+
+    <div class="side-spacer"></div>
+    <div class="side-exit">v0.1 prototype</div>
+  </aside>
+
+  <div class="main">
+    <div class="topbar">
+      <div class="search">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+        Search stocks, indices…
+      </div>
+      <div class="topbar-spacer"></div>
+      <div class="balance-pill">
+        <span class="label">Cash</span>
+        <span class="amt">₹84,212.50</span>
+      </div>
+      <div class="avatar">AK</div>
+    </div>
+
+    <div class="content">
+
+      <!-- ---- MARKET ---- -->
+      <section id="page-market">
+        <div class="page-head">
+          <h2>Market</h2>
+          <span class="sub">NSE · updated live</span>
+        </div>
+
+        <div class="tile-row">
+          <div class="tile"><span class="label">NIFTY 50</span><span class="value">24,812.35</span><span class="delta up">▲ 0.74%</span></div>
+          <div class="tile"><span class="label">SENSEX</span><span class="value">81,604.10</span><span class="delta up">▲ 0.61%</span></div>
+          <div class="tile"><span class="label">BANK NIFTY</span><span class="value">51,920.80</span><span class="delta down">▼ 0.22%</span></div>
+          <div class="tile"><span class="label">NIFTY IT</span><span class="value">39,118.45</span><span class="delta up">▲ 1.08%</span></div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-head"><h3>Watchlist</h3><span class="sub" style="color:var(--fg-faint);font-size:.8rem;">20 symbols</span></div>
+          <div class="table-scroll">
+            <table>
+              <thead><tr><th>Symbol</th><th class="num">LTP</th><th class="num">Change</th><th class="num">Chg %</th><th class="num">Volume</th></tr></thead>
+              <tbody>
+                <tr onclick="showPage('stock')">
+                  <td class="sym-cell"><span>RELIANCE</span><span class="name">Reliance Industries</span></td>
+                  <td class="num">2,945.50</td><td class="num up">+18.40</td><td class="num"><span class="chip up">+0.63%</span></td><td class="num">4.2M</td>
+                </tr>
+                <tr onclick="showPage('stock')">
+                  <td class="sym-cell"><span>TCS</span><span class="name">Tata Consultancy Services</span></td>
+                  <td class="num">3,812.25</td><td class="num down">-24.10</td><td class="num"><span class="chip down">-0.63%</span></td><td class="num">1.8M</td>
+                </tr>
+                <tr onclick="showPage('stock')">
+                  <td class="sym-cell"><span>INFY</span><span class="name">Infosys</span></td>
+                  <td class="num">1,540.00</td><td class="num up">+9.65</td><td class="num"><span class="chip up">+0.63%</span></td><td class="num">3.1M</td>
+                </tr>
+                <tr onclick="showPage('stock')">
+                  <td class="sym-cell"><span>HDFCBANK</span><span class="name">HDFC Bank</span></td>
+                  <td class="num">1,682.90</td><td class="num up">+4.20</td><td class="num"><span class="chip up">+0.25%</span></td><td class="num">5.6M</td>
+                </tr>
+                <tr onclick="showPage('stock')">
+                  <td class="sym-cell"><span>ICICIBANK</span><span class="name">ICICI Bank</span></td>
+                  <td class="num">1,284.60</td><td class="num down">-6.75</td><td class="num"><span class="chip down">-0.52%</span></td><td class="num">4.0M</td>
+                </tr>
+                <tr onclick="showPage('stock')">
+                  <td class="sym-cell"><span>ITC</span><span class="name">ITC Limited</span></td>
+                  <td class="num">468.15</td><td class="num up">+2.05</td><td class="num"><span class="chip up">+0.44%</span></td><td class="num">6.4M</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ---- STOCK ---- -->
+      <section id="page-stock" hidden>
+        <div class="page-head">
+          <h2>Stock</h2>
+          <span class="sub">Orders fill at the next available market price</span>
+        </div>
+
+        <div class="panel">
+          <div style="padding:20px;">
+            <div class="stock-head">
+              <div class="stock-id">
+                <div class="logo">RIL</div>
+                <div>
+                  <h2>RELIANCE</h2>
+                  <div class="meta">Reliance Industries Ltd <span class="exch-badge">NSE</span></div>
+                </div>
+              </div>
+              <div class="price-block">
+                <div class="price">₹2,945.50</div>
+                <div class="delta up">▲ 18.40 (0.63%) today</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="stock-grid" style="padding:0 20px 20px;">
+            <div>
+              <div style="display:flex;justify-content:flex-end;padding:0 4px 6px;">
+                <div class="range-tabs">
+                  <button aria-pressed="false">1D</button>
+                  <button aria-pressed="true">1W</button>
+                  <button aria-pressed="false">1M</button>
+                  <button aria-pressed="false">1Y</button>
+                </div>
+              </div>
+              <div class="chart-wrap">
+                <svg viewBox="0 0 600 220" preserveAspectRatio="none">
+                  <defs>
+                    <linearGradient id="areaFill" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stop-color="var(--gain)" stop-opacity="0.28"/>
+                      <stop offset="100%" stop-color="var(--gain)" stop-opacity="0"/>
+                    </linearGradient>
+                  </defs>
+                  <line x1="20" y1="60" x2="580" y2="60" stroke="var(--border)" stroke-width="1"/>
+                  <line x1="20" y1="120" x2="580" y2="120" stroke="var(--border)" stroke-width="1"/>
+                  <line x1="20" y1="180" x2="580" y2="180" stroke="var(--border)" stroke-width="1"/>
+                  <path d="M20,150 L71,145 L122,155 L173,140 L224,130 L275,138 L326,120 L377,110 L428,118 L479,95 L530,85 L580,70 L580,210 L20,210 Z" fill="url(#areaFill)"/>
+                  <path d="M20,150 L71,145 L122,155 L173,140 L224,130 L275,138 L326,120 L377,110 L428,118 L479,95 L530,85 L580,70" fill="none" stroke="var(--gain)" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/>
+                  <circle cx="580" cy="70" r="7" fill="var(--gain)" opacity="0.18"/>
+                  <circle cx="580" cy="70" r="3.5" fill="var(--gain)"/>
+                </svg>
+              </div>
+
+              <div class="panel" style="margin-top:16px;">
+                <div class="stats-grid">
+                  <div class="stat"><span class="label">Open</span><span class="val">2,930.10</span></div>
+                  <div class="stat"><span class="label">Prev close</span><span class="val">2,927.10</span></div>
+                  <div class="stat"><span class="label">Day high</span><span class="val">2,958.70</span></div>
+                  <div class="stat"><span class="label">Day low</span><span class="val">2,918.40</span></div>
+                  <div class="stat"><span class="label">52W high</span><span class="val">3,217.90</span></div>
+                  <div class="stat"><span class="label">52W low</span><span class="val">2,221.00</span></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="panel">
+              <div class="panel-head"><h3>Place order</h3></div>
+              <div class="ticket">
+                <div class="side-toggle">
+                  <button class="buy-on">Buy</button>
+                  <button>Sell</button>
+                </div>
+                <div class="field">
+                  <label for="qtyInput">Quantity</label>
+                  <input id="qtyInput" type="text" inputmode="numeric" value="10">
+                </div>
+                <div class="ticket-row"><span>Market price</span><span class="num">₹2,945.50</span></div>
+                <div class="ticket-row"><span>Estimated cost</span><span class="num">₹29,455.00</span></div>
+                <button class="btn btn-primary btn-block">Place order</button>
+                <p class="ticket-note">Orders are queued and executed at the next confirmed market price, not this estimate.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ---- PORTFOLIO ---- -->
+      <section id="page-portfolio" hidden>
+        <div class="page-head">
+          <h2>Portfolio</h2>
+          <span class="sub">As of today, 3:30 PM IST</span>
+        </div>
+
+        <div class="tile-row">
+          <div class="tile"><span class="label">Total value</span><span class="value">₹1,18,406</span></div>
+          <div class="tile"><span class="label">Total invested</span><span class="value">₹1,09,850</span></div>
+          <div class="tile"><span class="label">Unrealized P&amp;L</span><span class="value" style="color:var(--gain);">+₹8,556</span><span class="delta up">▲ 7.79%</span></div>
+          <div class="tile"><span class="label">Cash available</span><span class="value">₹84,212.50</span></div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-head"><h3>Holdings</h3></div>
+          <div class="table-scroll">
+            <table>
+              <thead><tr><th>Symbol</th><th class="num">Qty</th><th class="num">Avg cost</th><th class="num">LTP</th><th class="num">Value</th><th class="num">P&amp;L</th></tr></thead>
+              <tbody>
+                <tr onclick="showPage('stock')">
+                  <td class="sym-cell"><span>RELIANCE</span><span class="name">Reliance Industries</span></td>
+                  <td class="num">12</td><td class="num">2,810.00</td><td class="num">2,945.50</td><td class="num">35,346.00</td>
+                  <td class="num up">+1,626.00</td>
+                </tr>
+                <tr onclick="showPage('stock')">
+                  <td class="sym-cell"><span>TCS</span><span class="name">Tata Consultancy Services</span></td>
+                  <td class="num">8</td><td class="num">3,900.00</td><td class="num">3,812.25</td><td class="num">30,498.00</td>
+                  <td class="num down">-702.00</td>
+                </tr>
+                <tr onclick="showPage('stock')">
+                  <td class="sym-cell"><span>INFY</span><span class="name">Infosys</span></td>
+                  <td class="num">20</td><td class="num">1,460.25</td><td class="num">1,540.00</td><td class="num">30,800.00</td>
+                  <td class="num up">+1,595.00</td>
+                </tr>
+                <tr onclick="showPage('stock')">
+                  <td class="sym-cell"><span>HDFCBANK</span><span class="name">HDFC Bank</span></td>
+                  <td class="num">13</td><td class="num">1,590.00</td><td class="num">1,682.90</td><td class="num">21,877.70</td>
+                  <td class="num up">+1,207.70</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ---- TRANSACTIONS ---- -->
+      <section id="page-transactions" hidden>
+        <div class="page-head">
+          <h2>Transactions</h2>
+          <span class="sub">Every order you've placed</span>
+        </div>
+
+        <div class="panel">
+          <div class="table-scroll">
+            <table>
+              <thead><tr><th>Date</th><th>Symbol</th><th>Side</th><th class="num">Qty</th><th class="num">Price</th><th class="num">Total</th><th>Status</th></tr></thead>
+              <tbody>
+                <tr><td class="num">06 Oct, 10:14</td><td>RELIANCE</td><td><span class="chip buy">Buy</span></td><td class="num">4</td><td class="num">2,938.10</td><td class="num">11,752.40</td><td><span class="chip up">Filled</span></td></tr>
+                <tr><td class="num">05 Oct, 15:12</td><td>TCS</td><td><span class="chip sell">Sell</span></td><td class="num">3</td><td class="num">3,828.00</td><td class="num">11,484.00</td><td><span class="chip up">Filled</span></td></tr>
+                <tr><td class="num">05 Oct, 11:47</td><td>INFY</td><td><span class="chip buy">Buy</span></td><td class="num">20</td><td class="num">1,460.25</td><td class="num">29,205.00</td><td><span class="chip up">Filled</span></td></tr>
+                <tr><td class="num">03 Oct, 09:21</td><td>HDFCBANK</td><td><span class="chip buy">Buy</span></td><td class="num">5</td><td class="num">1,601.00</td><td class="num">8,005.00</td><td><span class="chip down">Rejected</span></td></tr>
+                <tr><td class="num">01 Oct, 14:02</td><td>RELIANCE</td><td><span class="chip buy">Buy</span></td><td class="num">8</td><td class="num">2,790.60</td><td class="num">22,324.80</td><td><span class="chip up">Filled</span></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ---- PROFILE ---- -->
+      <section id="page-profile" hidden>
+        <div class="page-head"><h2>Profile</h2></div>
+
+        <div class="panel" style="padding:20px;">
+          <div class="profile-head">
+            <div class="avatar">AK</div>
+            <div>
+              <h2>Aarav Kapoor</h2>
+              <div class="email">aarav.kapoor@example.com</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-head"><h3>Account</h3></div>
+          <div class="kv-list">
+            <div class="kv"><span class="k">Member since</span><span class="v">14 Mar 2026</span></div>
+            <div class="kv"><span class="k">Starting capital</span><span class="v">₹1,00,000.00</span></div>
+            <div class="kv"><span class="k">Orders placed</span><span class="v">37</span></div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-head"><h3>Settings</h3></div>
+          <div class="settings-list">
+            <div class="setting"><span>Change password</span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6"/></svg></div>
+            <div class="setting"><span>Notification preferences</span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6"/></svg></div>
+            <div class="setting"><span class="danger">Log out</span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6"/></svg></div>
+          </div>
+        </div>
+      </section>
+
+    </div>
+  </div>
+</div>
+
+<script>
+  var TICKS = [
+    ["RELIANCE","2,945.50","+0.63%","up"],
+    ["TCS","3,812.25","-0.63%","down"],
+    ["INFY","1,540.00","+0.63%","up"],
+    ["HDFCBANK","1,682.90","+0.25%","up"],
+    ["ICICIBANK","1,284.60","-0.52%","down"],
+    ["ITC","468.15","+0.44%","up"],
+    ["NIFTY 50","24,812.35","+0.74%","up"],
+    ["SENSEX","81,604.10","+0.61%","up"]
+  ];
+  (function buildTicker(){
+    var track = document.getElementById('tickerTrack');
+    var html = '';
+    for (var rep = 0; rep < 2; rep++) {
+      for (var i = 0; i < TICKS.length; i++) {
+        var t = TICKS[i];
+        html += '<div class="tick"><span class="sym">'+t[0]+'</span><span class="px">'+t[1]+'</span><span class="chg '+t[3]+'">'+t[2]+'</span></div>';
+      }
+    }
+    track.innerHTML = html;
+  })();
+
+  function showView(name){
+    var landing = document.getElementById('landing');
+    var app = document.getElementById('app');
+    var isApp = name === 'app';
+    landing.hidden = isApp;
+    app.hidden = !isApp;
+    document.getElementById('tgl-landing').setAttribute('aria-pressed', String(!isApp));
+    document.getElementById('tgl-app').setAttribute('aria-pressed', String(isApp));
+    window.scrollTo(0,0);
+  }
+
+  function showPage(name){
+    var pages = ['market','stock','portfolio','transactions','profile'];
+    for (var i = 0; i < pages.length; i++) {
+      var el = document.getElementById('page-' + pages[i]);
+      if (el) el.hidden = pages[i] !== name;
+      var link = document.querySelector('.side-link[data-page="' + pages[i] + '"]');
+      if (link) {
+        if (pages[i] === name) link.setAttribute('aria-current','page');
+        else link.removeAttribute('aria-current');
+      }
+    }
+    var mainEl = document.querySelector('.content');
+    if (mainEl) mainEl.scrollTo(0,0);
+  }
+</script>
+
+</body></html>

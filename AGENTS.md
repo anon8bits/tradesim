@@ -31,7 +31,14 @@ portfolio feature. Optimize for correctness and clarity over cleverness.
   `nse_top_100.json` and moved into `libs/common/src/data/` during Phase 6; the
   worker subscribes to all 100 in LTPC mode and the API searches/paginates this
   local catalog without calling Upstox per request.
-- **Frontend**: React (separate repo/app, not covered by this file yet).
+- **Frontend**: `apps/web` — Vite + React + TypeScript SPA (React Router,
+ TanStack Query, `@auth0/auth0-react`), styled from the root
+ `TradeSim Prototype.html` theme (Fraunces / Public Sans / IBM Plex Mono,
+ dark ledger palette with light mode). It consumes only the existing HTTP
+ API through a dev proxy (`/api` → `localhost:3000`) and has a `mock` mode
+ (`VITE_API_MODE=mock`) that runs the full UI without Auth0/API/worker. Money
+ stays BigInt paise in the browser too; display goes through `libs/common`'s
+ `paiseToDisplayRupees` (imported from source).
 - **Infra**: Docker Compose locally; Railway/Render/Fly + managed
   Postgres/Redis in production (no more Azure student credits).
 
@@ -92,11 +99,26 @@ including zero-holding, weighted-average-cost, and fully-sold-position tests.
 queue-global sequential BullMQ processing, pending-order reconciliation,
 transactional row locking, exact aggregate cost basis, idempotency,
 retryable post-commit events, a DLQ, DB financial constraints, and repeated
-real-Postgres contention tests are in place. The Upstox Analytics Token is
-configured locally and `nse_top_100.json` contains 100 unique validated NSE
-equities, but Phase 6 ingestion and catalog endpoints are not implemented.
-Modules from Phase 6 onward (`realtime/`, `ai/`, and worker `ingestion/`) do
-not exist yet.
+real-Postgres contention tests are in place. **Phase 6 implementation is
+complete but its final live gate is still pending:** the versioned 100-equity
+catalog, local paginated search, Analytics Token validation, Market Data Feed
+V3 protobuf ingestion, provider-sourced NSE session guard, immediate Redis
+cache/pub-sub path, deduplicated Postgres batches, reconnect/backoff, and
+rate-limited batched REST fallback are implemented and covered by tests.
+Live Upstox authorization, market timings, and a 100-key LTP batch have
+succeeded; outside market hours the worker now loads closing LTPs once per
+closed period, so the site always has prices; before marking Phase 6 done or starting Phase 7, run API + worker
+during an open NSE session and verify `MarketModule` reflects streamed prices.
+Phase 7 modules (`realtime/`, CI/observability) and later phases do not exist.
+**Frontend track (parallel, user-requested):** `apps/web` exists with landing,
+market, stock detail + order ticket, portfolio, orders, and profile pages; it
+polls prices until the Phase 7 WebSocket lands. Live Auth0 login is verified
+(SPA + custom API `https://tradesim-api` in one tenant; both env files use that
+audience) and the market shows real closing LTPs. Trading accounts are
+`users` rows matched by JWT `sub` (`User.auth0Id`); there is no
+self-provisioning yet, so new logins must be linked in the database. Backend gaps it works around
+(no order-history/status, user provisioning, or price-history endpoints; no
+CORS) are listed under "Frontend" in `docs/TASKS.md`.
 
 **Full phase-by-phase status, with checkboxes, lives in `docs/TASKS.md` — that
 file, not this summary, is the source of truth for what to build next.**

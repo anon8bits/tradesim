@@ -141,6 +141,43 @@ ambiguously (races a worker that received the job); a full generic outbox
 table/dispatcher (more infrastructure than this single event flow needs);
 storing only rounded average cost (loses real basis over repeated trades).
 
+## 2026-10-06 — Load closing LTPs once per closed market period
+
+**Why**: The market-hours guard kept ingestion fully idle outside sessions,
+so a fresh environment (or one whose Redis was flushed) had no prices until
+the next open. Outside a session Upstox's batched LTP endpoint returns the
+closing price, so the supervisor reuses the existing REST fallback once per
+closed period and routes results through the normal `TickHandler`. That is
+one request per closed period instead of polling, so it costs almost no rate
+limit, and the WebSocket still never connects while the market is closed.
+
+**Tradeoff accepted**: the snapshot's `ts` is the fetch time, because the LTP
+response has no trade timestamp.
+
+**Alternatives considered**: a manual seed script (easy to forget, leaves
+prices stale); polling LTP all night (wasted calls, since the price can't
+change); storing previous close from the V3 feed only (absent until the
+first session after a fresh start).
+
+## 2026-10-06 — Frontend as `apps/web` (Vite + React) against the existing API only
+
+**Why**: The frontend lives in the monorepo so it can reuse `libs/common`
+(the `paiseToDisplayRupees` helper and the top-100 catalog) from TypeScript
+source via a Vite alias. The package ships CommonJS for Node, so the browser
+build compiles its browser-safe source directly. Vite + React Router + TanStack
+Query keeps the SPA small and makes polling-now / WebSocket-later a local
+change. The UI was built without touching backend code, so it proxies `/api`
+in dev (the API has no CORS), polls prices until Phase 7, and keeps a local
+per-browser order log because there is no order-history endpoint. A `mock` API
+mode implementing the same interface lets the UI run and be tested without
+Auth0, Postgres, Redis, or the worker. In-browser money stays BigInt paise.
+
+**Alternatives considered**: a separate repository (loses shared catalog and
+money helpers, duplicates types); Next.js (SSR adds a server tier this
+API-backed dashboard doesn't need); adding CORS/order-history endpoints first
+(explicitly out of scope for this change, so they are tracked as follow-ups in
+`docs/TASKS.md`).
+
 ## 2026-10-02 — Analytics Token and fixed top-100 NSE universe
 
 **Why**: Upstox now provides a one-year, read-only Analytics Token that
@@ -164,6 +201,21 @@ provider rate limit across all users); importing the complete exchange
 universe into PostgreSQL (unnecessary complexity for the chosen fixed 100);
 manually maintaining a 20–30-symbol TypeScript constant (too small and less
 auditable than the validated JSON catalog).
+
+## 2026-10-02 — Provider market timings instead of a hardcoded holiday list
+
+**Why**: the Phase 6 ingestion guard must skip NSE trading holidays, but a
+checked-in holiday list becomes stale every year and misses special sessions.
+The worker asks Upstox's date-specific market-timings endpoint for the NSE
+session and caches that result for the Indian calendar date. No NSE timing
+means closed; a request failure also fails closed and is retried. This keeps
+the persistent feed off outside the provider-declared session without silently
+guessing around holidays.
+
+**Alternatives considered**: maintaining annual holiday arrays in source
+(ongoing manual updates); using only Mon-Fri 9:15–15:30 IST (connects on
+holidays and misses special sessions); keeping the feed connected continuously
+(unnecessary provider connection usage).
 
 <!-- Add new entries above this line, newest first. -->
 
