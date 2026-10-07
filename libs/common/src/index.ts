@@ -5,6 +5,7 @@
  * schema: wire-format types (e.g. a price tick moving through Redis
  * pub/sub) and small pure helpers like money formatting.
  */
+export * from "./instrument-catalog";
 
 /** A single price update as it moves through Redis pub/sub to WebSocket clients. */
 export interface PriceTick {
@@ -39,17 +40,33 @@ export function rupeesToPaise(rupees: string): bigint {
 }
 
 /**
- * Placeholder curated symbol list — replace with real Upstox instrument
- * keys in Phase 6 (see docs/ARCHITECTURE.md). Kept here, not hardcoded in
- * the worker, so it's a config change rather than a code change later.
+ * Upstox transports rupee prices as protobuf/JSON doubles. Convert that
+ * provider-boundary value to a decimal string immediately, then perform
+ * paise rounding with string/BigInt operations. No monetary arithmetic
+ * after this boundary uses a JavaScript number.
  */
-export const CURATED_SYMBOLS = ["RELIANCE", "TCS", "INFY"] as const;
+export function wireRupeesToPaise(value: number): bigint {
+  if (!Number.isFinite(value) || value <= 0) {
+    throw new Error(`Invalid wire price: ${String(value)}`);
+  }
 
-/**
- * Index symbols exposed by GET /indices. Populate this alongside
- * CURATED_SYMBOLS when the real Upstox instrument list is selected.
- */
+  const decimal = value.toString();
+  const match = /^(\d+)(?:\.(\d+))?$/.exec(decimal);
+  if (!match) {
+    throw new Error(`Unsupported wire price format: ${decimal}`);
+  }
+
+  const [, wholeRupees, fraction = ""] = match;
+  const padded = fraction.padEnd(3, "0");
+  let paise = BigInt(wholeRupees) * 100n + BigInt(padded.slice(0, 2));
+  if (padded[2] >= "5") {
+    paise += 1n;
+  }
+  return paise;
+}
+
 export const CURATED_INDEX_SYMBOLS: readonly string[] = [];
+export const PRICE_TICKS_CHANNEL = "price.ticks";
 
 export const ORDER_QUEUE_NAME = "orders";
 export const ORDER_DEAD_LETTER_QUEUE_NAME = "orders-dead-letter";

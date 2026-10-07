@@ -1,4 +1,8 @@
-import { paiseToDisplayRupees, rupeesToPaise } from "./index";
+import {
+  paiseToDisplayRupees,
+  rupeesToPaise,
+  wireRupeesToPaise,
+} from "./index";
 
 describe("paiseToDisplayRupees", () => {
   it("formats whole rupees with two decimal places", () => {
@@ -26,5 +30,18 @@ describe("rupeesToPaise", () => {
   it("rejects values that cannot be represented exactly as paise", () => {
     expect(() => rupeesToPaise("1.001")).toThrow("Invalid rupee amount");
     expect(() => rupeesToPaise("not-money")).toThrow("Invalid rupee amount");
+  });
+});
+
+describe("wireRupeesToPaise", () => {
+  it("rounds provider doubles to the nearest paise using BigInt arithmetic", () => {
+    expect(wireRupeesToPaise(52.04999923706055)).toBe(5_205n);
+    expect(wireRupeesToPaise(2945.5)).toBe(294_550n);
+    expect(wireRupeesToPaise(100.005)).toBe(10_001n);
+  });
+
+  it("rejects non-positive and non-finite provider prices", () => {
+    expect(() => wireRupeesToPaise(0)).toThrow("Invalid wire price");
+    expect(() => wireRupeesToPaise(Number.NaN)).toThrow("Invalid wire price");
   });
 });

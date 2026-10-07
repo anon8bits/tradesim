@@ -1,5 +1,10 @@
 import { Injectable, Logger } from "@nestjs/common";
-import { CURATED_INDEX_SYMBOLS, PriceTick } from "@tradesim/common";
+import {
+  CURATED_INDEX_SYMBOLS,
+  InstrumentCatalogEntry,
+  NSE_TOP_100,
+  PriceTick,
+} from "@tradesim/common";
 import { PrismaService } from "../prisma/prisma.service";
 import { RedisService } from "../redis/redis.service";
 
@@ -7,6 +12,13 @@ interface CachedPrice {
   symbol: string;
   priceCents: string;
   ts: string;
+}
+
+export interface StockCatalogPage {
+  instruments: readonly InstrumentCatalogEntry[];
+  page: number;
+  limit: number;
+  total: number;
 }
 
 @Injectable()
@@ -48,6 +60,30 @@ export class MarketService {
       CURATED_INDEX_SYMBOLS.map((symbol) => this.getStock(symbol)),
     );
     return prices.filter((price): price is PriceTick => price !== null);
+  }
+
+  searchStocks(query: string, page: number, limit: number): StockCatalogPage {
+    const normalizedQuery = query.trim().toLocaleLowerCase("en");
+    const matches = normalizedQuery
+      ? NSE_TOP_100.filter((instrument) =>
+          [
+            instrument.tradingSymbol,
+            instrument.name,
+            instrument.shortName ?? "",
+            instrument.isin,
+          ].some((value) =>
+            value.toLocaleLowerCase("en").includes(normalizedQuery),
+          ),
+        )
+      : NSE_TOP_100;
+    const offset = (page - 1) * limit;
+
+    return {
+      instruments: matches.slice(offset, offset + limit),
+      page,
+      limit,
+      total: matches.length,
+    };
   }
 
   private cacheKey(symbol: string): string {

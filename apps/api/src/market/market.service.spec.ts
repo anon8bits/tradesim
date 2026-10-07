@@ -90,4 +90,37 @@ describe("MarketService", () => {
     });
     expect(findFirst).toHaveBeenCalledTimes(1);
   });
+
+  it("paginates the complete configured stock catalog locally", () => {
+    const firstPage = service.searchStocks("", 1, 30);
+    const lastPage = service.searchStocks("", 4, 30);
+
+    expect(firstPage).toMatchObject({ page: 1, limit: 30, total: 100 });
+    expect(firstPage.instruments).toHaveLength(30);
+    expect(lastPage.instruments).toHaveLength(10);
+    expect(
+      new Set(
+        [
+          ...firstPage.instruments,
+          ...service.searchStocks("", 2, 30).instruments,
+          ...service.searchStocks("", 3, 30).instruments,
+          ...lastPage.instruments,
+        ].map((instrument) => instrument.instrumentKey),
+      ).size,
+    ).toBe(100);
+  });
+
+  it("searches symbols and names case-insensitively without provider calls", () => {
+    const bySymbol = service.searchStocks("  maruti  ", 1, 20);
+    const byName = service.searchStocks("suzuki", 1, 20);
+
+    expect(bySymbol.instruments.map((entry) => entry.tradingSymbol)).toContain(
+      "MARUTI",
+    );
+    expect(byName.instruments.map((entry) => entry.tradingSymbol)).toContain(
+      "MARUTI",
+    );
+    expect(get).not.toHaveBeenCalled();
+    expect(findFirst).not.toHaveBeenCalled();
+  });
 });
