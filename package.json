@@ -6,6 +6,7 @@
     "build:libs": "pnpm --filter @tradesim/common build && pnpm --filter @tradesim/db build",
     "dev:api": "pnpm build:libs && dotenv -e .env -- pnpm --filter @tradesim/api dev",
     "dev:worker": "pnpm build:libs && dotenv -e .env -- pnpm --filter @tradesim/worker dev",
+    "dev:web": "pnpm --filter @tradesim/web dev",
     "build": "pnpm -r --workspace-concurrency=1 build",
     "lint": "pnpm -r --workspace-concurrency=1 lint",
     "test": "pnpm -r --workspace-concurrency=1 test",
