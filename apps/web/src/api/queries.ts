@@ -25,7 +25,23 @@ export const queryKeys = {
     ["stocks", query, page, limit] as const,
   price: (symbol: string) => ["price", symbol] as const,
   portfolio: ["portfolio"] as const,
+  account: (sub: string) => ["account", sub] as const,
 };
+
+/** Opens the trading account on first sign-in; idempotent on later calls. */
+export function useAccount() {
+  const api = useApi();
+  const { isAuthenticated, user } = useAuth();
+  const sub = user?.sub ?? "";
+  return useQuery({
+    queryKey: queryKeys.account(sub),
+    queryFn: () => api.ensureAccount(),
+    enabled: isAuthenticated && sub !== "",
+    staleTime: Infinity,
+    refetchOnWindowFocus: false,
+    retry: shouldRetry,
+  });
+}
 
 async function fetchPrice(
   api: TradeSimApi,

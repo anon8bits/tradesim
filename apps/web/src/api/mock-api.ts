@@ -9,6 +9,7 @@ import {
   StockCatalogPage,
   StockSearchParams,
   TradeSimApi,
+  TradingAccount,
 } from "./types";
 
 // Demo backend for previewing the UI without Auth0/API/worker. It mirrors the
@@ -80,6 +81,8 @@ export function createMockApi(options: MockApiOptions = {}): TradeSimApi {
     holdings: new Map(),
     prices: new Map(),
   };
+  const accountOpenedAt = new Date(now()).toISOString();
+  let accountOpened = false;
 
   function priceOf(symbol: string): MockPrice {
     const existing = state.prices.get(symbol);
@@ -147,6 +150,19 @@ export function createMockApi(options: MockApiOptions = {}): TradeSimApi {
   }
 
   return {
+    async ensureAccount(): Promise<TradingAccount> {
+      await delay(latencyMs);
+      const created = !accountOpened;
+      accountOpened = true;
+      return {
+        id: "demo-account",
+        email: "demo@tradesim.local",
+        cashBalanceCents: state.cash.toString(),
+        createdAt: accountOpenedAt,
+        created,
+      };
+    },
+
     async searchStocks({
       query,
       page,

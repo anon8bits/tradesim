@@ -65,6 +65,9 @@ export function wireRupeesToPaise(value: number): bigint {
   return paise;
 }
 
+/** Virtual cash credited once when a trading account is created: ₹1,00,000. */
+export const STARTING_CASH_BALANCE_PAISE = 10_000_000n;
+
 export const CURATED_INDEX_SYMBOLS: readonly string[] = [];
 export const PRICE_TICKS_CHANNEL = "price.ticks";
 

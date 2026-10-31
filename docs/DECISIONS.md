@@ -178,6 +178,29 @@ API-backed dashboard doesn't need); adding CORS/order-history endpoints first
 (explicitly out of scope for this change, so they are tracked as follow-ups in
 `docs/TASKS.md`).
 
+## 2026-10-06 — Self-provisioned accounts; one email per account, no linking
+
+**Why**: Each Auth0 login method gets its own `sub`, so keying accounts by
+`sub` alone would let one person open a Google wallet and a password wallet
+with the same email. The product rule is "already in use" rather than merging,
+so the API's idempotent `POST /me` opens an account only for a verified email
+not held by another `sub`; the unique `users.email` column makes the rule hold
+under concurrency. The email comes from Auth0 `/userinfo` with the caller's own
+access token (called once, at creation), which needs no Auth0 configuration
+or Management API secret in the API. Verification is required so an
+unconfirmed password sign-up cannot squat an address before its owner signs in
+with Google. The opening ₹1,00,000 is written as a `DEPOSIT` ledger row in the
+same transaction, so `transactions` sums to the cash balance from day one. A
+Pre User Registration Action adds the friendlier refusal on Auth0's sign-up
+form; it fails open because the API check is authoritative.
+
+**Alternatives considered**: Auth0 account linking (merges identities into one
+`sub`; rejected because the requirement is to refuse, not merge); an email
+claim injected by a Post Login Action (another manual Auth0 dependency for
+every request); trusting an email sent by the SPA (unverifiable); auto-creating
+inside the portfolio/orders read paths (hides a write in a GET and spreads the
+conflict handling across modules).
+
 ## 2026-10-02 — Analytics Token and fixed top-100 NSE universe
 
 **Why**: Upstox now provides a one-year, read-only Analytics Token that

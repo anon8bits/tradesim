@@ -84,22 +84,73 @@ export function Notice({
 }
 
 export function TradingProfileMissing() {
-  const { user, logout } = useAuth();
+  const { logout } = useAuth();
   return (
     <div className="panel">
       <div className="empty-state">
         <h3>No trading account linked to this login</h3>
         <p>
-          You're signed in, but the TradeSim API has no trading profile for this
-          Auth0 identity yet. Accounts are currently provisioned in the
-          database; link a user row to this subject:
+          Your trading account couldn't be found. Reload the page to finish
+          setting it up, or log out and sign in again.
         </p>
-        <code className="code">{user?.sub ?? "unknown"}</code>
         <button type="button" className="btn btn-ghost btn-sm" onClick={logout}>
           Log out
         </button>
       </div>
     </div>
+  );
+}
+
+const ACCOUNT_PROBLEM_TITLES: Record<string, string> = {
+  EMAIL_IN_USE: "This email is already in use",
+  EMAIL_NOT_VERIFIED: "Verify your email to continue",
+  EMAIL_MISSING: "An email address is required",
+};
+
+/** Full-page blocker shown when the trading account can't be opened. */
+export function AccountProblem({
+  error,
+  retry,
+  retrying,
+}: {
+  error: unknown;
+  retry: () => void;
+  retrying: boolean;
+}) {
+  const { logout } = useAuth();
+  const code = error instanceof ApiError ? error.code : null;
+  const title =
+    (code && ACCOUNT_PROBLEM_TITLES[code]) ??
+    "We couldn't set up your trading account";
+  const message =
+    error instanceof Error ? error.message : "Something went wrong.";
+  const canRetry = code !== "EMAIL_IN_USE" && code !== "EMAIL_MISSING";
+
+  return (
+    <FullPageMessage title={title}>
+      <p>{message}</p>
+      <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+        {canRetry && (
+          <button
+            type="button"
+            className="btn btn-primary"
+            onClick={retry}
+            disabled={retrying}
+          >
+            {code === "EMAIL_NOT_VERIFIED"
+              ? "I've verified my email"
+              : "Try again"}
+          </button>
+        )}
+        <button
+          type="button"
+          className={canRetry ? "btn btn-ghost" : "btn btn-primary"}
+          onClick={logout}
+        >
+          {code === "EMAIL_IN_USE" ? "Log out and switch method" : "Log out"}
+        </button>
+      </div>
+    </FullPageMessage>
   );
 }
 

@@ -1,6 +1,7 @@
 import { Module } from "@nestjs/common";
 import { ConfigModule } from "@nestjs/config";
 import { APP_GUARD } from "@nestjs/core";
+import { AccountsModule } from "./accounts/accounts.module";
 import { AuthModule } from "./auth/auth.module";
 import { JwtAuthGuard } from "./auth/jwt-auth.guard";
 import { HealthController } from "./health/health.controller";
@@ -18,6 +19,7 @@ import { RedisModule } from "./redis/redis.module";
     PrismaModule,
     RedisModule,
     AuthModule,
+    AccountsModule,
     MarketModule,
     PortfolioModule,
     OrdersModule,

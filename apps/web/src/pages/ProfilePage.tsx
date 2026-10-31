@@ -1,4 +1,5 @@
-import { usePortfolio } from "../api/queries";
+import { STARTING_CASH_BALANCE_PAISE } from "@tradesim/common";
+import { useAccount, usePortfolio } from "../api/queries";
 import { initials, useAuth } from "../auth/auth-context";
 import { ChevronIcon } from "../components/Icons";
 import { config } from "../config";
@@ -15,6 +16,7 @@ const THEMES: Array<{ value: ThemePreference; label: string }> = [
 export function ProfilePage() {
   const { user, logout } = useAuth();
   const portfolio = usePortfolio();
+  const account = useAccount();
   const orders = useOrderLog(user?.sub);
   const [theme, setTheme] = useTheme();
   const data = portfolio.data;
@@ -65,6 +67,28 @@ export function ProfilePage() {
           <div className="kv">
             <span className="k">Orders from this browser</span>
             <span className="v">{orders.length}</span>
+          </div>
+          <div className="kv">
+            <span className="k">Account email</span>
+            <span className="v">{account.data?.email ?? "—"}</span>
+          </div>
+          <div className="kv">
+            <span className="k">Member since</span>
+            <span className="v">
+              {account.data
+                ? new Date(account.data.createdAt).toLocaleDateString("en-IN", {
+                    day: "numeric",
+                    month: "short",
+                    year: "numeric",
+                  })
+                : "—"}
+            </span>
+          </div>
+          <div className="kv">
+            <span className="k">Starting capital</span>
+            <span className="v">
+              {formatRupees(STARTING_CASH_BALANCE_PAISE)}
+            </span>
           </div>
           <div className="kv">
             <span className="k">Email verified</span>

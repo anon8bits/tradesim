@@ -62,6 +62,5 @@ describe("PortfolioPage", () => {
     expect(
       await screen.findByText(/no trading account linked/i),
     ).toBeInTheDocument();
-    expect(screen.getByText("auth0|test-user")).toBeInTheDocument();
   });
 });

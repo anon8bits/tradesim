@@ -18,6 +18,13 @@ export const TEST_USER = {
 
 export function fakeApi(overrides: Partial<TradeSimApi> = {}): TradeSimApi {
   return {
+    ensureAccount: vi.fn(async () => ({
+      id: "account-1",
+      email: TEST_USER.email,
+      cashBalanceCents: "10000000",
+      createdAt: "2026-10-06T04:44:00.000Z",
+      created: false,
+    })),
     searchStocks: vi.fn(async () => ({
       items: [],
       page: 1,

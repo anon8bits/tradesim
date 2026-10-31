@@ -44,7 +44,8 @@ portfolio feature. Optimize for correctness and clarity over cleverness.
 
 ## Architecture summary
 
-- `apps/api` — NestJS gateway. Feature modules: `MarketModule` (read-only
+- `apps/api` — NestJS gateway. Feature modules: `AccountsModule`
+  (`POST /me` opens the caller's one trading account), `MarketModule` (read-only
   prices/indices, cache-first), `PortfolioModule` (read-only holdings/balance),
   `OrdersModule` (validates + enqueues orders, returns 202 immediately, never
   executes trades inline), `RealtimeModule` (WebSocket gateway, subscribes to
@@ -114,11 +115,18 @@ Phase 7 modules (`realtime/`, CI/observability) and later phases do not exist.
 market, stock detail + order ticket, portfolio, orders, and profile pages; it
 polls prices until the Phase 7 WebSocket lands. Live Auth0 login is verified
 (SPA + custom API `https://tradesim-api` in one tenant; both env files use that
-audience) and the market shows real closing LTPs. Trading accounts are
-`users` rows matched by JWT `sub` (`User.auth0Id`); there is no
-self-provisioning yet, so new logins must be linked in the database. Backend gaps it works around
-(no order-history/status, user provisioning, or price-history endpoints; no
-CORS) are listed under "Frontend" in `docs/TASKS.md`.
+audience) and the market shows real closing LTPs. Backend gaps it works around
+(no order-history/status or price-history endpoints; no CORS) are listed
+under "Frontend" in `docs/TASKS.md`.
+**Accounts & sign-up (user-requested):** `apps/api/src/accounts` adds an
+idempotent `POST /me` that the SPA calls after login. It opens exactly one
+trading account per Auth0 identity with ₹1,00,000
+(`STARTING_CASH_BALANCE_PAISE`) plus a `DEPOSIT` ledger row. The email comes
+from Auth0 `/userinfo` and must be verified. An email already owned by
+another login method (Google vs. email/password) is refused with 409
+`EMAIL_IN_USE`. Accounts are never linked or merged. An Auth0 Pre User
+Registration Action in `infra/auth0/` also refuses duplicate sign-ups on the
+Auth0 form; installing it is a **You** step in `docs/TASKS.md`.
 
 **Full phase-by-phase status, with checkboxes, lives in `docs/TASKS.md` — that
 file, not this summary, is the source of truth for what to build next.**

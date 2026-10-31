@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, NavLink, Outlet, useLocation } from "react-router";
-import { usePortfolio } from "../api/queries";
+import { useAccount, usePortfolio } from "../api/queries";
 import { initials, useAuth } from "../auth/auth-context";
 import { config, PRICE_REFRESH_MS } from "../config";
 import { formatRupees, parsePaise } from "../lib/money";
@@ -12,7 +12,8 @@ import {
   StockIcon,
 } from "./Icons";
 import { SearchBox } from "./SearchBox";
-import { FullPageLoader } from "./StatusScreens";
+import { AccountProblem, FullPageLoader } from "./StatusScreens";
+import { useToast } from "./toast";
 
 function sideLinkClass() {
   return "side-link";
@@ -69,6 +70,35 @@ export function RequireAuth() {
         label={isLoading ? "Checking your session…" : "Redirecting to sign in…"}
       />
     );
+  return <RequireAccount />;
+}
+
+function RequireAccount() {
+  const account = useAccount();
+  const notify = useToast();
+  const welcomed = useRef(false);
+
+  useEffect(() => {
+    if (account.data?.created && !welcomed.current) {
+      welcomed.current = true;
+      notify({
+        tone: "success",
+        title: "Trading account opened",
+        body: `${formatRupees(parsePaise(account.data.cashBalanceCents))} in virtual cash is ready to trade.`,
+      });
+    }
+  }, [account.data, notify]);
+
+  if (account.isError)
+    return (
+      <AccountProblem
+        error={account.error}
+        retry={() => void account.refetch()}
+        retrying={account.isFetching}
+      />
+    );
+  if (!account.data)
+    return <FullPageLoader label="Setting up your trading account…" />;
   return <AppShell />;
 }
 

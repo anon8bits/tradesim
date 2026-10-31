@@ -206,10 +206,8 @@ exist and must not change backend code on its own.
   backend phases; not done from the frontend track):
   - `GET /orders` (history + final status/fill price) — Orders page uses a
     local per-browser log instead
-  - user provisioning on first login (e.g. `POST /me` creating a ₹1,00,000
-    profile keyed by the JWT `sub`) — new Auth0 users currently see "No
-    trading account linked" and need a manual `users."auth0Id"` update;
-    each Auth0 connection (Google vs. password) yields a different `sub`
+  - ~~user provisioning on first login~~ — done, see "Accounts & sign-up"
+    below
   - price history / previous close for real day change and charts — the UI
     shows session-observed change only
   - CORS (or a same-origin reverse proxy) for production deploys
@@ -218,6 +216,44 @@ exist and must not change backend code on its own.
 - **Done when**: a real Auth0 user can sign in, see live prices and their
   portfolio, and place a buy and a sell that settle, against the running API
   and worker.
+
+## Accounts & sign-up (user-requested, alongside the frontend track)
+
+One trading account per person, opened automatically on first sign-in, and
+one email can never back two accounts across login methods.
+
+- [x] `apps/api/src/accounts/` — idempotent `POST /me` (201 created / 200
+  existing): looks up the caller by JWT `sub`; on first use reads the email
+  from Auth0 `/userinfo`, requires `email_verified`, refuses an email owned
+  by another identity (409 `EMAIL_IN_USE`, naming the original method), and
+  creates the `users` row with `STARTING_CASH_BALANCE_PAISE` (₹1,00,000)
+  plus an opening `DEPOSIT` ledger row in one Postgres transaction;
+  unique-constraint races resolve to the winner's account
+- [x] Tests: service unit tests (existing account, exact balance + deposit,
+  both conflict directions, unverified/missing email, `sub` mismatch, both
+  race outcomes), `/userinfo` client error mapping, controller status codes,
+  and a real-Postgres test with 8 concurrent first logins → exactly one
+  account and one deposit, then a refused duplicate-email sign-up
+- [x] `apps/web`: `RequireAuth` calls `POST /me` before rendering the app;
+  shows a welcome toast for a new account and blocking screens for
+  `EMAIL_IN_USE` (log out and switch method), `EMAIL_NOT_VERIFIED` (retry
+  after verifying), and `EMAIL_MISSING`; Profile shows account email,
+  member-since date, and starting capital
+- [x] Auth0 Action source:
+  `infra/auth0/pre-user-registration-block-duplicate-email.js`
+- [ ] **You**: install that Action (steps in its header: M2M app with only
+  `read:users`, secrets `DOMAIN` / `CLIENT_ID` / `CLIENT_SECRET`, attach to
+  the Pre User Registration trigger) so a duplicate email/password sign-up
+  is refused on the Auth0 form itself
+- [ ] **You**: when adding email/password, enable the
+  `Username-Password-Authentication` database connection for the SPA (keep
+  email verification on — unverified emails cannot open an account)
+- [ ] **You**: set the legacy `trader1@example.com` row (linked to your Google
+  login) to your real Google email so the duplicate-email check protects it:
+  `UPDATE users SET email = '<your gmail>' WHERE "auth0Id" = 'google-oauth2|104849829807894441547';`
+- **Done when**: a brand-new Google login lands in the app with ₹1,00,000
+  and no manual DB step, and an email/password sign-up with that same email
+  is refused with an "already in use" message.
 
 ## Phase 7 — Real-time delivery + CI/observability
 - [ ] `apps/api/src/realtime/realtime.module.ts`

@@ -66,7 +66,23 @@ export interface OrderResponse {
   createdAt: string;
 }
 
+export interface TradingAccount {
+  id: string;
+  email: string;
+  cashBalanceCents: string;
+  createdAt: string;
+  /** True only on the request that opened the account. */
+  created: boolean;
+}
+
+export type AccountErrorCode =
+  | "EMAIL_IN_USE"
+  | "EMAIL_NOT_VERIFIED"
+  | "EMAIL_MISSING";
+
 export interface TradeSimApi {
+  /** Returns the caller's trading account, opening it on first sign-in. */
+  ensureAccount(): Promise<TradingAccount>;
   searchStocks(params: StockSearchParams): Promise<StockCatalogPage>;
   /** Resolves `null` when the API has no price for the symbol yet (404). */
   getStock(symbol: string): Promise<MarketPrice | null>;
@@ -78,6 +94,7 @@ export class ApiError extends Error {
   constructor(
     readonly status: number,
     message: string,
+    readonly code: string | null = null,
   ) {
     super(message);
     this.name = "ApiError";

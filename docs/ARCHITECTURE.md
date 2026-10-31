@@ -146,7 +146,7 @@ Display-only conversion helpers live in `libs/common` (`paiseToDisplayRupees`).
 
 | Model | Purpose | Key fields |
 |---|---|---|
-| `User` | One row per trader | `cashBalanceCents` (BigInt), `auth0Id` (links to Auth0 identity) |
+| `User` | One trading account per person, opened by `POST /me` | `cashBalanceCents` (BigInt), unique `auth0Id` (Auth0 identity) and unique lowercase `email` |
 | `Holding` | Current position per user+symbol | `quantity`, exact `costBasisCents`, display `avgCostCents`; unique on `(userId, symbol)` |
 | `Order` | A buy/sell request and its outcome | `side` (BUY/SELL), `status` (PENDING/FILLED/REJECTED), `fillPriceCents` (set only on execution), rejection/event-delivery metadata |
 | `Transaction` | Append-only ledger entry | `amountCents` (signed: negative = debit, positive = credit), optionally linked to an `Order` |
@@ -170,6 +170,7 @@ tradesim/
       src/
         health/                 # Phase 1
         auth/                   # Phase 2
+        accounts/               # POST /me — account provisioning
         redis/                  # Phase 3
         market/                 # Phase 3
         portfolio/              # Phase 4
@@ -188,6 +189,7 @@ tradesim/
   libs/
     db/                          # Prisma schema + client, shared by both apps
     common/                      # Shared wire types (PriceTick) and money helpers
+  infra/auth0/                   # Auth0 Action source, installed by hand
 ```
 
 Folders not yet created (`auth/`, `market/`, `portfolio/`, `orders/`,
@@ -219,11 +221,55 @@ arrangement or CORS added to the API.
   the same `TradeSimApi` interface plus a fake signed-in user; it settles
   orders with the worker's BigInt rules so the UI can be exercised end to end.
 
+## Account provisioning (`apps/api/src/accounts`)
+
+A trading account is a `users` row keyed by the Auth0 subject (`auth0Id`)
+and an email; both columns are unique, so each login owns at most one
+account and each email backs at most one account. Every Auth0 login method
+yields its own `sub` (`google-oauth2|…`, `auth0|…`), so the email is what
+stops one person from holding two wallets.
+
+```mermaid
+sequenceDiagram
+  participant W as apps/web
+  participant A as POST /me
+  participant I as Auth0 /userinfo
+  participant P as Postgres
+  W->>A: Bearer access token (after login)
+  A->>P: user by auth0Id
+  alt account exists
+    A-->>W: 200 account
+  else first sign-in
+    A->>I: same bearer token
+    I-->>A: sub, email, email_verified
+    A->>A: sub matches token? email present and verified?
+    A->>P: user by email
+    alt email owned by another login
+      A-->>W: 409 EMAIL_IN_USE (names that method)
+    else
+      A->>P: BEGIN; INSERT user (₹1,00,000); INSERT DEPOSIT; COMMIT
+      A-->>W: 201 account (created: true)
+    end
+  end
+```
+
+- Concurrent first requests race on the unique constraints; losers re-read
+  and return the winner's account, or 409 if a different login took the
+  email.
+- Unverified emails are refused (403 `EMAIL_NOT_VERIFIED`) so nobody can
+  reserve someone else's address with an unconfirmed password sign-up.
+- Auth0 side: a Pre User Registration Action
+  (`infra/auth0/pre-user-registration-block-duplicate-email.js`) refuses an
+  email/password sign-up whose email already exists in the tenant, so the
+  user is told on the sign-up form. The API check is authoritative and also
+  covers Google-after-password, which that trigger never sees.
+
 ## Module structure (`apps/api`)
 
 - **Core (global)**: `ConfigModule`, `PrismaModule`, `RedisModule`,
   `AuthModule`.
-- **Feature**: `MarketModule` (read-only), `PortfolioModule` (read-only),
+- **Feature**: `AccountsModule` (`POST /me` provisioning),
+  `MarketModule` (read-only), `PortfolioModule` (read-only),
   `OrdersModule` (validates + enqueues, never executes inline),
   `RealtimeModule` (WebSocket gateway, subscribes to Redis).
 

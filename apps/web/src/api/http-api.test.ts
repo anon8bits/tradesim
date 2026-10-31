@@ -86,6 +86,38 @@ describe("createHttpApi", () => {
     );
   });
 
+  it("opens the trading account with POST /me", async () => {
+    const account = {
+      id: "u1",
+      email: "asha@example.com",
+      cashBalanceCents: "10000000",
+      createdAt: "2026-10-06T04:44:00.000Z",
+      created: true,
+    };
+    const { api, fetchImpl } = setup(jsonResponse(201, account));
+
+    await expect(api.ensureAccount()).resolves.toEqual(account);
+    const [url, init] = fetchImpl.mock.calls[0];
+    expect(url).toBe("/api/me");
+    expect(init?.method).toBe("POST");
+  });
+
+  it("keeps the machine-readable error code", async () => {
+    const { api } = setup(
+      jsonResponse(409, {
+        statusCode: 409,
+        code: "EMAIL_IN_USE",
+        message: "asha@example.com is already in use",
+      }),
+    );
+    const error = (await api
+      .ensureAccount()
+      .catch((e: unknown) => e)) as ApiError;
+    expect(error.status).toBe(409);
+    expect(error.code).toBe("EMAIL_IN_USE");
+    expect(error.message).toBe("asha@example.com is already in use");
+  });
+
   it("flags a missing trading profile", async () => {
     const { api } = setup(
       jsonResponse(404, {

@@ -7,23 +7,29 @@ import {
   StockCatalogPage,
   StockSearchParams,
   TradeSimApi,
+  TradingAccount,
 } from "./types";
 
 type GetToken = () => Promise<string>;
 
 async function toApiError(response: Response): Promise<ApiError> {
   let message = response.statusText || `Request failed (${response.status})`;
+  let code: string | null = null;
   try {
     const body: unknown = await response.json();
-    if (body && typeof body === "object" && "message" in body) {
-      const raw = (body as { message: unknown }).message;
+    if (body && typeof body === "object") {
+      const { message: raw, code: rawCode } = body as {
+        message?: unknown;
+        code?: unknown;
+      };
       if (typeof raw === "string") message = raw;
       else if (Array.isArray(raw)) message = raw.map(String).join("; ");
+      if (typeof rawCode === "string") code = rawCode;
     }
   } catch {
     // Non-JSON error body; keep the status text.
   }
-  return new ApiError(response.status, message);
+  return new ApiError(response.status, message, code);
 }
 
 export function createHttpApi(
@@ -51,6 +57,10 @@ export function createHttpApi(
   }
 
   return {
+    ensureAccount() {
+      return request<TradingAccount>("/me", { method: "POST" });
+    },
+
     searchStocks({ query, page, limit }: StockSearchParams) {
       const params = new URLSearchParams({
         query,

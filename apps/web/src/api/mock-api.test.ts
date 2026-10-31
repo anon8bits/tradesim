@@ -73,6 +73,15 @@ describe("createMockApi", () => {
     expect(portfolio.holdings).toEqual([]);
   });
 
+  it("opens the demo account once with the starting cash", async () => {
+    const { api } = setup();
+    const first = await run(api.ensureAccount());
+    const second = await run(api.ensureAccount());
+    expect(first).toMatchObject({ created: true, cashBalanceCents: "10000000" });
+    expect(second.created).toBe(false);
+    expect(second.id).toBe(first.id);
+  });
+
   it("returns null for symbols outside the catalog", async () => {
     const { api } = setup();
     await expect(run(api.getStock("NOTREAL"))).resolves.toBeNull();
